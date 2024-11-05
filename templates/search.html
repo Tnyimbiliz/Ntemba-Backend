@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Results</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding-top: 140px; /* Adjust for fixed navbar and search bar */
+            overflow-y: auto; /* Allow scrolling */
+        }
+
+        /* Navbar styling */
+        .navbar {
+            background-color: #4B48E0;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .navbar .brand {
+            font-size: 1.5rem;
+            color: white;
+            font-weight: bold;
+            padding-left: 1rem;
+        }
+
+        .navbar .user-dropdown {
+            position: relative;
+            padding-right: 3rem;
+        }
+
+        .navbar .user-dropdown span {
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .navbar .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 150px;
+            display: none; /* Default to hidden */
+            flex-direction: column;
+        }
+        
+        .navbar .user-dropdown.active .dropdown-menu {
+            display: flex; /* Show menu when 'active' class is present */
+        }
+
+        .navbar .dropdown-menu a {
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: #333;
+            display: block;
+        }
+
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 90%;
+            max-width: 1200px;
+            margin: 20px auto;
+        }
+
+        .items-container h2 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .items-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .items-container {
+            align-content: center;
+        }
+
+
+        .items-container .item {
+            background-color: #f8f8f8;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 100%; /* Stretch across the full width */
+            display: flex;
+            cursor: pointer;
+            margin-bottom: 1rem; /* Add space between items */
+        }
+
+        .items-container .item img {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            margin-right: 1rem;
+            object-fit: cover;
+        }
+
+        .item-details {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .item-details h3 {
+            font-size: 1.2rem;
+            color: #333;
+            margin: 0;
+        }
+
+        .item-details p {
+            font-size: 1rem;
+            color: #666;
+            margin: 5px 0 0;
+        }
+
+
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="brand" onclick="shop()">NTEMBA</div>
+        <div class="user-dropdown">
+            <span id="user"></span>
+            <div class="dropdown-menu">
+                <a href="/profile">Profile</a>
+                <a href="/cart">Cart</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="items-container">
+            <h2>Search Results</h2>
+            <div class="items-list" id="search-results-list">
+                <!-- Search results will be injected here by JavaScript -->
+            </div>
+            <p id="error-message"></p>
+        </div>
+    </div>
+
+    <script>
+        document.querySelector('.user-dropdown span').addEventListener('click', function() {
+            const dropdown = document.querySelector('.user-dropdown');
+            dropdown.classList.toggle('active');
+        });
+
+        function shop(){
+            window.location.href = "/items"
+        }
+
+        async function getUsername() {
+            const token = localStorage.getItem("jwt_token");
+            const storeStatus = localStorage.getItem("storeStatus");
+
+            if (storeStatus == 1) {
+                // Fetch the store name if the user is a store owner
+                const response = await fetch("/store/storename/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (response.ok) {
+                    const store = await response.json();
+                    document.getElementById("user").textContent = store.toUpperCase(); // Display store name
+                } else {
+                    console.error("Failed to fetch store name:", response.statusText);
+                }
+            } else {
+                // Fetch the username if the user is not a store owner
+                const response = await fetch("/user/details/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById("user").textContent = user.username.toUpperCase(); // Display username
+                } else {
+                    console.error("Failed to fetch user details:", response.statusText);
+                    window.location.href = "/login"; // Redirect to login if unauthorized
+                }
+            }
+        }
+
+        async function fetchSearchResults() {
+
+            phrase = window.location.pathname.split("/").pop();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const query = urlParams.get('query');
+            if (!phrase) {
+                document.getElementById('error-message').textContent = "No search query provided.";
+                return;
+            }
+
+            const response = await fetch(`/item/search_items/?query=${encodeURIComponent(phrase)}&limit=10`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (response.ok) {
+                const items = await response.json();
+                console.log(items);
+                const resultsList = document.getElementById("search-results-list");
+                resultsList.innerHTML = "";
+                if (items.length === 0) {
+                    document.getElementById('error-message').textContent = "No items found.";
+                    } else {
+                    items.forEach(item => {
+                        const itemDiv = document.createElement("div");
+                        itemDiv.classList.add("item");
+                        itemDiv.onclick = () => window.location.href = `/item-details/${item.id}`;
+
+                        itemDiv.innerHTML = `
+                            <img src="https://via.placeholder.com/80" alt="${item.name}">
+                            <div class="item-details">
+                                <h3>${item.name}</h3>
+                                <p>$${item.price.toFixed(2)}</p>
+                            </div>
+                        `;
+                        resultsList.appendChild(itemDiv);
+                    });
+                }
+            } else {
+                console.error("Failed to fetch search results:", response.statusText);
+                document.getElementById('error-message').textContent = "Failed to fetch search results.";
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("jwt_token");
+            localStorage.removeItem("storeStatus");
+            window.location.href = "/login";
+        }
+
+        getUsername();
+        fetchSearchResults();
+    </script>
+</body>
+</html>

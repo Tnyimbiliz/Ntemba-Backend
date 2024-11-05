@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Profile</title>
+    <!-- Include Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        .navbar {
+            background-color: var(--primary-color, #4B48E0);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .navbar .brand {
+            padding-left: 1rem;
+            font-size: 1.5rem;
+            color: white;
+            font-weight: bold;
+        }
+
+        .navbar .user-dropdown {
+            position: relative;
+            padding-right: 1rem;
+        }
+
+        .navbar .user-dropdown span {
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .navbar .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 150px;
+            display: none;
+            flex-direction: column;
+        }
+
+        .navbar .user-dropdown.active .dropdown-menu {
+            display: flex;
+        }
+
+        .navbar .dropdown-menu a {
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: #333;
+            display: block;
+        }
+
+        .navbar .dropdown-menu a:hover {
+            background-color: #f5f5f5;
+        }
+
+        .profile-container {
+            background-color: white;
+            width: 350px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            margin-top: 80px;
+        }
+
+        .profile-header {
+            background-color: var(--primary-color, #4B48E0);
+            color: white;
+            padding: 2rem 1rem 3rem 1rem;
+            position: relative;
+            text-align: center;
+        }
+
+        .profile-header img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin-top: 0;
+            margin-bottom: 1rem;
+            border: 4px solid white;
+            object-fit: cover;
+        }
+
+        .profile-header h2 {
+            margin: 0.5rem 0;
+            font-size: 1.5rem;
+        }
+
+        .profile-header p {
+            font-size: 0.9rem;
+            margin: 0.5rem 0;
+        }
+
+        .profile-details {
+            padding: 1.5rem;
+            text-align: left;
+        }
+
+        .profile-details .detail {
+            margin-bottom: 1rem;
+        }
+
+        .profile-details .detail i {
+            margin-right: 1rem;
+            color: var(--primary-color, #4B48E0);
+        }
+
+        .profile-details .detail a {
+            color: var(--primary-color, #4B48E0);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="brand" onclick="shop()">NTEMBA</div>
+        <div class="user-dropdown">
+            <span id="user"></span>
+            <div class="dropdown-menu">
+                <a href="/profile">Profile</a>
+                <a href="/cart">Cart</a>
+                <a href="/orders"> Orders</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="profile-container">
+        <div class="profile-header">
+            <img src=""  id="profile-image">
+            <h2 id="profile-username"></h2>
+        </div>
+        <div class="profile-details">
+            <div class="detail"><i class="fa fa-envelope"></i> <span id="profile-username-bottom"></span></div>
+            <div class="detail"><i class="fa fa-user"></i> <span id="profile-fullname"></span></div>
+            <div class="detail"><i class="fa fa-link"></i> <a href="#" id="profile-email"></a></div>
+            <div class="detail"><i class="fa fa-shield"></i> <a href="#" id="profile-type"></a></div>
+        </div>
+    </div>
+
+    <script>
+        document.querySelector('.user-dropdown span').addEventListener('click', function() {
+            const dropdown = document.querySelector('.user-dropdown');
+            dropdown.classList.toggle('active');
+        });
+
+        function shop(){
+            window.location.href = "/items"
+        }
+
+        function applyStoreStatusTheme() {
+            const storeStatus = localStorage.getItem("storeStatus");
+            const root = document.documentElement;
+            if (storeStatus == 1) {
+                root.style.setProperty('--primary-color', '#E04848');
+            } else if (storeStatus == 2) {
+                root.style.setProperty('--primary-color', '#48E048');
+            } else {
+                const dropdownMenu = document.querySelector('.dropdown-menu');
+                const createStoreLink = document.createElement('a');
+                createStoreLink.href = "/create_store";
+                createStoreLink.textContent = "Create Store✅";
+                dropdownMenu.insertBefore(createStoreLink, dropdownMenu.querySelector('a[href="#"]'));
+
+                const registerRider = document.createElement('a');
+                registerRider.href = "/register_rider";
+                registerRider.textContent = "Register as Rider🚲";
+                dropdownMenu.insertBefore(registerRider, dropdownMenu.querySelector('a[href="/create_store"]'));
+            }
+        }
+
+        async function loadProfile() {
+            const token = localStorage.getItem("jwt_token");
+            const storeStatus = localStorage.getItem("storeStatus");
+
+            if (storeStatus == 1) {
+                const response = await fetch("/store/storename/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (response.ok) {
+                    const store = await response.json();
+                    document.getElementById("user").textContent = store.toUpperCase();
+                    document.getElementById("profile-username").textContent = store.toUpperCase();
+                    document.getElementById("profile-image").src = storeStatus == 1 ? "https://img.icons8.com/?size=100&id=18878&format=png&color=FFFFFF" : "https://img.icons8.com/?size=100&id=6M1qqDqQTtRd&format=png&color=FFFFFF";
+                } else {
+                    console.error("Failed to fetch store name:", response.statusText);
+                }
+            }
+
+            const response = await fetch("/user/details/", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            const user = await response.json();
+
+            if (storeStatus == 0) {
+                document.getElementById("user").textContent = user.username.toUpperCase();
+                document.getElementById("profile-username").textContent = user.username.toUpperCase();
+                document.getElementById("profile-image").src = "https://img.icons8.com/?size=100&id=7820&format=png&color=FFFFFF";
+            }
+            else if (storeStatus == 2) {
+                document.getElementById("user").textContent = user.username.toUpperCase();
+                document.getElementById("profile-username").textContent = user.username.toUpperCase();
+                document.getElementById("profile-image").src = "https://img.icons8.com/?size=100&id=6M1qqDqQTtRd&format=png&color=FFFFFF";
+            }
+
+            if (response.ok) {
+                document.getElementById("profile-email").textContent = user.email;
+                document.getElementById("profile-fullname").textContent = user.full_name;
+                document.getElementById("profile-username-bottom").textContent = "@" + user.username;
+                document.getElementById("profile-type").textContent = user.type === 1 ? "Administrator" : "User";
+            } else {
+                console.error("Failed to load profile details:", response.statusText);
+                window.location.href = "/login";
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("jwt_token");
+            localStorage.removeItem("storeStatus");
+            window.location.href = "/login";
+        }
+
+        applyStoreStatusTheme();
+        loadProfile();
+    </script>
+</body>
+</html> 

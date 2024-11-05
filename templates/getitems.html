@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="title">Items List</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--primary-color, #4B48E0);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .user-info {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            text-align: right;
+            z-index: 1000;
+        }
+
+        .user-info span {
+            display: block;
+            font-size: 1rem;
+            font-weight: bold;
+            color: black;
+            margin-bottom: 0.5rem;
+        }
+
+        a {
+            text-decoration: none;
+            color: white;
+            font-weight: bold;
+        }
+
+        .user-info a {
+            text-decoration: none;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        /* Navbar styling */
+        .navbar {
+            background-color: var(--primary-color, #4B48E0);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .navbar .brand {
+            font-size: 1.5rem;
+            color: white;
+            font-weight: bold;
+            padding-left: 1rem;
+        }
+
+        .navbar .user-dropdown {
+            position: relative;
+            padding-right: 1rem;
+        }
+
+        .navbar .user-dropdown span {
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .navbar .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 150px;
+            display: none; /* Default to hidden */
+            flex-direction: column;
+        }
+        
+        .navbar .user-dropdown.active .dropdown-menu {
+            display: flex; /* Show menu when 'active' class is present */
+        }
+
+        .navbar .dropdown-menu a {
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: #333;
+            display: block;
+        }
+
+        /* Search bar styling */
+        .search-bar {
+            background-color: white;
+            padding: 1rem 2rem;
+            position: fixed;
+            top: 90px; /* Below navbar */
+            width: 100%;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 999;
+            display: flex;
+            align-items: center;
+
+        }
+
+        .search-bar input[type="text"] {
+            width: 80%;
+            padding: 0.75rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 1rem;
+            margin-right: 0.5rem;
+        }
+
+        .search-bar button {
+            padding: 0.75rem 1.5rem;
+            background-color: var(--primary-color, #4B48E0);
+            width: 10%;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background-color 0.3s ease;
+        }
+
+        .search-bar button:hover {
+            background-color:var(--primary-color, #4B48E0);
+        }
+
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 400px;
+            text-align: center;
+        }
+
+        .items-container h2 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .items-container ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            text-align: left;
+        }
+
+        .items-container li {
+            background-color: #f8f8f8;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            font-size: 1rem;
+            color: #555;
+        }
+
+        #error-message {
+            color: red;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="brand" onclick="shop()">NTEMBA</div>
+        <div class="user-dropdown">
+            <span id="user"></span>
+            <div class="dropdown-menu">
+                <a href="/profile">Profile</a>
+                <a href="/cart">Cart</a>
+                <!-- The Create Store link will be dynamically added here if storeStatus is 0 -->
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="search-bar">
+        <input type="text" id="search-query" placeholder="Search for items...">
+        <button onclick="searchItems()"><i class="fas fa-search"></i></button> 
+    </div>
+
+    <div class="container">
+        <div class="items-container">
+            <h2>Items List</h2>
+            <div class="items-list" id="items-list">
+                <!-- Items will be injected here in js-->
+            </div>
+            <p id="error-message"></p>
+        </div>
+    </div>
+
+    <script>
+        document.querySelector('.user-dropdown span').addEventListener('click', function() {
+            const dropdown = document.querySelector('.user-dropdown');
+            dropdown.classList.toggle('active');
+        });
+
+        function shop(){
+            window.location.href = "/items"
+        }
+        
+        async function getUsername() {
+            const token = localStorage.getItem("jwt_token");
+            const storeStatus = localStorage.getItem("storeStatus");
+
+            if (storeStatus == 1) {
+                // Fetch the store name if the user is a store owner
+                const response = await fetch("/store/storename/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (response.ok) {
+                    const store = await response.json();
+                    document.getElementById("user").textContent = store.toUpperCase(); // Display store name
+                } else {
+                    console.error("Failed to fetch store name:", response.statusText);
+                }
+            } else {
+                // Fetch the username if the user is not a store owner
+                const response = await fetch("/user/details/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById("user").textContent = user.username.toUpperCase(); // Display username
+                } else {
+                    console.error("Failed to fetch user details:", response.statusText);
+                    window.location.href = "/login"; // Redirect to login if unauthorized
+                }
+            }
+        }
+
+        async function fetchItems() {
+            const token = localStorage.getItem("jwt_token");
+
+            if (!token) {
+                const user_span = document.getElementById("user");
+                user_span.innerHTML = '<a href="/login">LOGIN</a>';
+            }
+
+            const response = await fetch("/item/get_items/", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (response.ok) {
+                const items = await response.json();
+                const itemsList = document.getElementById("items-list");
+                itemsList.innerHTML = "";
+                items.forEach(item => {
+                    const li = document.createElement("li");
+                    const a = document.createElement("a");
+                    a.href = `/item-details/${item.id}`;
+                    a.style.textDecoration = "none";
+                    a.style.color = "#555";
+                    a.textContent = `${item.name} - K${item.price}`;
+                    li.appendChild(a);
+                    itemsList.appendChild(li);
+                });
+            } else {
+                console.error("Failed to fetch items:", response.statusText);
+                window.location.href = "/login"; // Redirect to login if unauthorized
+            }
+        }
+
+        function searchItems() {
+            const query = document.getElementById("search-query").value;
+            if (query.length >= 3) {
+                window.location.href = `/search/${(query)}`;
+            } else {
+                alert("Please enter at least 3 characters for the search.");
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("jwt_token");
+            localStorage.removeItem("storeStatus");
+            window.location.href = "/login";
+        }
+
+        function applyStoreStatusTheme() {
+            const storeStatus = localStorage.getItem("storeStatus");
+            const root = document.documentElement;
+            if (storeStatus == 1) {
+                // If store owner, change the primary color to red
+                root.style.setProperty('--primary-color', '#E04848');
+            } else {
+                const dropdownMenu = document.querySelector('.dropdown-menu');
+                const createStoreLink = document.createElement('a');
+                createStoreLink.href = "/create_store";
+                createStoreLink.textContent = "Create Store✅";
+                dropdownMenu.insertBefore(createStoreLink, dropdownMenu.querySelector('a[href="#"]')); // Insert above Logout
+            }
+        }
+
+        applyStoreStatusTheme();
+        getUsername();
+        fetchItems();
+    </script>
+</body>
+</html>

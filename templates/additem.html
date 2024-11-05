@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Item</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #E04848;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .form-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 400px;
+            text-align: center;
+        }
+
+        .form-container h2 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+
+        .form-group label {
+            font-size: 0.9rem;
+            color: #333;
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+
+        #add-item-btn {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #E04848;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        #error-message {
+            color: red;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="form-container">
+        <h2>Add New Item</h2>
+        <form id="add-item-form" enctype="multipart/form-data">
+            <div class="form-group">
+                <label for="name">Item Name</label>
+                <input type="text" id="name" name="name" required />
+            </div>
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="price">Price</label>
+                <input type="number" id="price" name="price" required />
+            </div>
+
+            <!-- Category Dropdown -->
+            <div class="form-group">
+                <label for="categories">Select Categories</label>
+                <select id="categories" name="categories" multiple required>
+                    <option value="Automotive and Accessories">Automotive and Accessories</option>
+                    <option value="Beauty and Personal care">Beauty and Personal care</option>
+                    <option value="Books and Stationary">Books and Stationary</option>
+                    <option value="Clothing and Footwear">Clothing and Footwear</option>
+                    <option value="Electronics and Gadgets">Electronics and Gadgets</option>
+                    <option value="Food and Beverages">Food and Beverages</option>
+                    <option value="Health and Wellness">Health and Wellness</option>
+                    <option value="Home and Living">Home and Living</option>
+                    <option value="Pets and Supplies">Pets and Supplies</option>
+                    <option value="Sports and Outdoor">Sports and Outdoor</option>
+                    <option value="Toys and Games">Toys and Games</option>
+                    <option value="Vintage and Preowned">Vintage and Preowned</option>
+                </select>
+            </div>
+
+            <!-- Image Upload Input -->
+            <div class="form-group">
+                <label for="image">Upload Image</label>
+                <input type="file" id="image" name="image" accept="image/*" />
+            </div>
+
+            <button type="submit" id="add-item-btn">Add Item</button>
+            <p id="error-message"></p>
+        </form>
+    </div>
+
+    <script>
+        async function getStoreId() {
+            const token = localStorage.getItem("jwt_token");
+            const response = await fetch("/store/get_storeid/", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                return data;
+            } else {
+                throw new Error("Failed to get store ID");
+            }
+        }
+
+        async function addItem(event) {
+            event.preventDefault();
+
+            const formData = new FormData(document.getElementById("add-item-form"));
+            const token = localStorage.getItem("jwt_token");
+            const store_id = await getStoreId();
+
+            formData.append("store_id", store_id);
+
+            // Collect selected categories from the dropdown
+            const selectedCategories = Array.from(
+                document.getElementById("categories").selectedOptions
+            ).map(option => option.value);
+
+            if (selectedCategories.length === 0) {
+                document.getElementById("error-message").textContent = "Please select at least one category.";
+                return;
+            }
+
+            // Append each category separately for form data
+            selectedCategories.forEach(category => formData.append("categories", category));
+
+            const response = await fetch("/item/create_item/", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+                body: formData
+            });
+
+            if (response.ok) {
+                alert("Item added successfully!");
+                window.location.href = "/my_items"; // Redirect to items page
+            } else {
+                document.getElementById("error-message").textContent = "Failed to add item.";
+            }
+        }
+
+        document.getElementById("add-item-form").addEventListener("submit", addItem);
+    </script>
+</body>
+</html> 

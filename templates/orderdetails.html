@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Order Details</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #6C63FF;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .navbar {
+            background-color: #4B48E0;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .navbar .brand {
+            font-size: 1.5rem;
+            color: white;
+            font-weight: bold;
+            padding-left: 1rem;
+        }
+
+        .navbar .user-dropdown {
+            position: relative;
+            padding-right: 1rem;
+        }
+
+        .navbar .user-dropdown span {
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .navbar .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 150px;
+            display: none;
+            flex-direction: column;
+        }
+
+        .navbar .user-dropdown.active .dropdown-menu {
+            display: flex;
+        }
+
+        .navbar .dropdown-menu a {
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: #333;
+            display: block;
+        }
+
+        .order-details-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 800px;
+            margin: 20px;
+        }
+
+        .order-details-container h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+            text-align: center;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .order-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .order-item-details {
+            flex-grow: 1;
+            margin-left: 1rem;
+        }
+
+        .order-item-details h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #333;
+        }
+
+        .order-item-details p {
+            margin: 0.5rem 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .order-summary {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .order-summary div {
+            font-size: 1.2rem;
+        }
+
+        .confirmation-code-container {
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        .confirmation-code-input {
+            font-size: 1.2rem; /* Increase the font size */
+            padding: 0.5rem; /* Add some padding */
+            border: 1px solid #ccc; /* Light border */
+            border-radius: 5px; /* Rounded corners */
+            width: 60%; /* Width of the input box */
+        }
+
+        .order-status {
+            font-size: 1.2rem; /* Font size for status */
+            text-align: center; /* Center align */
+            margin-top: 1rem; /* Add top margin */
+            padding: 0.5rem; /* Add padding for spacing */
+            border-radius: 5px; /* Rounded corners */
+        }
+
+        .cancel-button-container {
+            display: flex; /* Use flexbox for alignment */
+            justify-content: center; /* Center the button horizontally */
+            margin-top: 1rem; /* Add space above the button */
+        }
+
+        #cancel-button {
+            text-decoration: none; /* Remove underline */
+            color: red; /* Red color for the cancel link */
+            font-weight: bold; /* Bold text */
+            cursor: pointer; /* Change cursor to pointer */
+        }
+
+        #cancel-button:hover {
+            text-decoration: underline; /* Underline on hover for emphasis */
+        }
+
+        #confirm-button-container {
+            align-items: center;
+        }
+
+        #confirm-button {
+            color: white; /* White text color */
+            background-color: #4de048; /* Blue background */
+            border: none; /* Remove border */
+            padding: 1rem 2rem; /* Padding for size */
+            font-size: 1.2rem; /* Larger font size */
+            border-radius: 5px; /* Rounded corners */
+            cursor: pointer; /* Pointer cursor on hover */
+            transition: background-color 0.3s; /* Smooth transition */
+        }
+
+        #confirm-button:hover {
+            background-color: #7be048; /* Darker blue on hover */
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="navbar">
+        <div class="brand" onclick="shop()">NTEMBA</div>
+        <div class="user-dropdown">
+            <span id="user"></span>
+            <div class="dropdown-menu">
+                <a href="/profile">Profile</a>
+                <a href="/cart">Cart</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </div>
+    <div class="order-details-container">
+        <h2>Order Details</h2>
+        <div id="order-items-list">
+            <!-- Order items will be injected here by JavaScript -->
+        </div>
+        <div class="order-summary">
+            <div>Total Price:</div>
+            <div id="total-price">K0.00</div>
+        </div>
+        <p class="order-status" id="order-status"></p>
+        <div class="confirmation-code-holder" id="confirmation-code-holder" style="display:none;"></div>
+        <div class="confirmation-code-container" id="confirmation-code-container" style="display:none;">
+            <input type="text" id="confirmation-code" class="confirmation-code-input" placeholder="Enter Confirmation Code" />
+            <div id="confirm-button" style="color: green; font-weight: bold; cursor: pointer; display: inline-block; margin-top: 1rem;">Confirm Order</div>
+        </div>
+        <div class="cancel-button-container">
+            <a id="cancel-button" style="display: none;">Cancel Order</a>
+        </div>
+    </div>
+    
+    <script>
+        let orderId = null;
+        const storeStatus = localStorage.getItem("storeStatus");
+
+        document.querySelector('.user-dropdown span').addEventListener('click', function() {
+            const dropdown = document.querySelector('.user-dropdown');
+            dropdown.classList.toggle('active');
+        });
+
+        function shop() {
+            window.location.href = "/items";
+        }
+
+        async function loadOrderDetails() {
+            const orderId = window.location.pathname.split("/").pop();
+            const token = localStorage.getItem("jwt_token");
+
+            const response = await fetch(`/order/order_details/${orderId}`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (response.ok) {
+                const order = await response.json();
+
+                const orderItemsList = document.getElementById("order-items-list");
+                orderItemsList.innerHTML = ""; // Clear any existing items
+
+                order.items.forEach(item => {
+                    const itemElement = document.createElement("div");
+                    itemElement.classList.add("order-item");
+
+                    itemElement.innerHTML = `
+                        <div class="order-item-details">
+                            <h3>${item.name}</h3>
+                            <p>Price: K${item.price.toFixed(2)}</p>
+                            <p>Quantity: ${item.quantity || 1}</p>
+                        </div>
+                    `;
+
+                    orderItemsList.appendChild(itemElement);
+                });
+
+                document.getElementById("total-price").textContent = `K${order.total_price.toFixed(2)}`;
+                document.getElementById("confirmation-code-holder").textContent = `Confirmation Code: ${order.confirmation_code}`;
+
+                // Set the order status with appropriate styling
+                const orderStatus = document.getElementById("order-status");
+                orderStatus.textContent = `Status: ${order.status}`;
+
+                switch (order.status.toLowerCase()) {
+                    case "pending":
+                        orderStatus.style.backgroundColor = "yellow";
+                        orderStatus.style.color = "#333";
+                        if (storeStatus == 0) {
+                            document.getElementById("cancel-button").style.display = "block"; // Show cancel button
+                        } else {
+                            document.getElementById("confirmation-code-holder").style.display = "block"; // Show confirmation code input
+                        }
+                        break;
+                    case "confirmed":
+                        orderStatus.style.backgroundColor = "blue";
+                        orderStatus.style.color = "white";
+                        document.getElementById("cancel-button").style.display = "none"; // Hide cancel button
+                        document.getElementById("confirmation-code-container").style.display = "none"; // Hide confirmation code input
+                        document.getElementById("confirmation-code-holder").style.display = "block"; 
+                        
+                        if (storeStatus == 1) {
+                            document.getElementById("confirmation-code-holder").style.display = "none"; // Hide confirmation code input
+                        }
+                        if (storeStatus == 2) {
+                            document.getElementById("confirmation-code-container").style.display = "block"; // Hide confirmation code input
+                            document.getElementById("confirmation-code-holder").style.display = "none"; // Hide confirmation code input
+                        }
+                        break;
+                    case "cancelled":
+                        orderStatus.style.backgroundColor = "red";
+                        orderStatus.style.color = "white";
+                        document.getElementById("cancel-button").style.display = "none"; // Hide cancel button
+                        document.getElementById("confirmation-code-container").style.display = "none"; // Hide confirmation code input
+                        break;
+                    case "completed":
+                        orderStatus.style.backgroundColor = "green";
+                        orderStatus.style.color = "white";
+                        document.getElementById("cancel-button").style.display = "none"; // Hide cancel button
+                        document.getElementById("confirmation-code-container").style.display = "none"; // Hide confirmation code input
+                        break;
+                    default:
+                        orderStatus.style.backgroundColor = "transparent";
+                        orderStatus.style.color = "#000";
+                        break;
+                }
+
+                // Check if the user is a store owner and their store_id is part of the order's store_ids
+
+            } else {
+                console.error("Failed to load order details");
+            }
+        }
+
+        // Cancel order functionality
+        document.getElementById("cancel-button").addEventListener("click", async () => {
+            const orderId = window.location.pathname.split("/").pop();
+            const token = localStorage.getItem("jwt_token");
+
+            const response = await fetch(`/order/cancel/${orderId}`, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert(result.message);
+                loadOrderDetails(); // Refresh order details to reflect changes
+            } else {
+                const error = await response.json();
+                alert(error.detail || "Failed to cancel order");
+            }
+        });
+
+        // Confirm order functionality
+        document.getElementById("confirm-button").addEventListener("click", async () => {
+            const orderId = window.location.pathname.split("/").pop();
+            const token = localStorage.getItem("jwt_token");
+            const confirmationCode = document.getElementById("confirmation-code").value;
+
+            // Construct the URL with query parameters
+            const url = `/order/complete/?order_id=${orderId}&confirmation_code=${confirmationCode}`;
+
+            const response = await fetch(url, {
+                method: "PUT", // Change this to PUT
+                headers: {
+                    "Authorization": `Bearer ${token}`
+                },
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                alert(result.message);
+                loadOrderDetails(); // Refresh order details to reflect changes
+            } else {
+                const error = await response.json();
+                alert(error.detail || "Failed to complete order");
+            }
+        });
+
+        function logout() {
+            localStorage.removeItem("jwt_token");
+            localStorage.removeItem("storeStatus");
+            window.location.href = "/login";
+        }
+
+        loadOrderDetails();
+    </script>
+</body>
+</html>

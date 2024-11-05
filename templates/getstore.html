@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store Details</title>
+    <!-- Include Font Awesome for stars -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .store-container {
+            background-color: white;
+            width: 90%;
+            max-width: 800px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .store-header {
+            background-color: var(--primary-color, #4B48E0);
+            color: white;
+            padding: 2rem 1rem;
+            text-align: center;
+            position: relative;
+        }
+        
+        .store-header h2 {
+            margin: 0.5rem 0;
+            font-size: 2rem;
+        }
+
+        .store-header p {
+            font-size: 1rem;
+            margin: 0.5rem 0;
+        }
+
+        .store-header .rating {
+            margin-top: 1rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .store-details {
+            padding: 1.5rem;
+            text-align: left;
+        }
+
+        .store-details .detail {
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .store-details .detail i {
+            margin-right: 1rem;
+            color: var(--primary-color, #4B48E0);
+        }
+
+        .items-section {
+            padding: 1.5rem;
+        }
+
+        .item {
+            border-bottom: 1px solid #ddd;
+            padding: 1rem 0;
+        }
+
+        .item h3 {
+            margin: 0;
+            font-size: 1.3rem;
+        }
+
+        .item p {
+            margin: 0.5rem 0;
+        }
+
+        .item .price {
+            font-weight: bold;
+            color: var(--primary-color, #4B48E0);
+        }
+
+        /* Star rating styles */
+        .stars {
+            cursor: pointer;
+            font-size: 2rem;
+        }
+
+        .stars i {
+            color: #ccc;
+        }
+
+        .stars i.filled {
+            color: #FFD700;
+        }
+    </style>
+</head>
+<body>
+    <div class="store-container">
+        <div class="store-header">
+            <h2 id="store-name"></h2>
+            <p id="store-followers">Followers: 0</p>
+            <p id="store-rating">Rating: 0.0</p>
+            <div class="rating">
+                <div class="stars" id="rating-stars">
+                    <i class="fa fa-star" data-rating="1"></i>
+                    <i class="fa fa-star" data-rating="2"></i>
+                    <i class="fa fa-star" data-rating="3"></i>
+                    <i class="fa fa-star" data-rating="4"></i>
+                    <i class="fa fa-star" data-rating="5"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="store-details">
+            <div class="detail"><i class="fa fa-check-circle"></i> <span id="store-verified"></span></div>
+            <div class="detail"><i class="fa fa-user"></i> <span id="store-owner"></span></div>
+        </div>
+
+        <div class="items-section">
+            <h2>Items</h2>
+            <div id="items-list">
+                <!-- Items will be loaded here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadStoreDetails() {
+            const storeId = window.location.pathname.split("/").pop();
+            const token = localStorage.getItem("jwt_token");
+
+            // Fetch store details
+            const storeResponse = await fetch(`/store/${storeId}/`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (storeResponse.ok) {
+                const store = await storeResponse.json();
+                document.getElementById("store-name").textContent = store.name;
+                document.getElementById("store-followers").textContent = `Followers: ${store.followers}`;
+                document.getElementById("store-rating").textContent = `Rating: ${store.rating.toFixed(1)}`;
+                document.getElementById("store-verified").textContent = store.verified ? "Verified" : "Not Verified";
+
+                // Reflect the original rating on the stars
+                highlightStars(store.rating);
+            } else {
+                console.error("Failed to fetch store details:", storeResponse.statusText);
+            }
+
+            // Fetch items by store
+            const itemsResponse = await fetch(`/item/get_items_by/${storeId}`, {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (itemsResponse.ok) {
+                const items = await itemsResponse.json();
+                const itemsList = document.getElementById("items-list");
+            
+                items.forEach(item => {
+                    const itemDiv = document.createElement("div");
+                    itemDiv.classList.add("item");
+            
+                    // Make the item clickable and redirect to /item-details/{item.id}
+                    itemDiv.innerHTML = `
+                        <a href="/item-details/${item.id}" style="text-decoration: none; color: inherit;">
+                            <h3>${item.name}</h3>
+                            <p>${item.description}</p>
+                            <p class="price">$${item.price}</p>
+                        </a>
+                    `;
+            
+                    itemsList.appendChild(itemDiv);
+                });
+            } else {
+                console.error("Failed to fetch items:", itemsResponse.statusText);
+            }
+        }
+
+        // Functionality for handling star ratings
+        function handleRating(rating) {
+            const storeId = window.location.pathname.split("/").pop();
+            const token = localStorage.getItem("jwt_token");
+
+            // Send the rating to the server
+            fetch(`/store/rate/${storeId}`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ rating: rating })
+            })
+            .then(response => {
+                if (response.ok) {
+                    console.log(`Rated the store ${rating} stars.`);
+                } else {
+                    console.error("Failed to rate the store:", response.statusText);
+                }
+            });
+        }
+
+        // Set up event listeners for star rating
+        document.querySelectorAll('.stars i').forEach(star => {
+            star.addEventListener('click', function() {
+                const rating = this.getAttribute('data-rating');
+                handleRating(rating);
+
+                // Highlight stars based on selected rating
+                highlightStars(rating);
+            });
+        });
+
+        // Function to highlight stars based on rating
+        function highlightStars(rating) {
+            document.querySelectorAll('.stars i').forEach(star => {
+                star.classList.remove('filled');
+                if (star.getAttribute('data-rating') <= rating) {
+                    star.classList.add('filled');
+                }
+            });
+        }
+
+        loadStoreDetails();
+    </script>
+</body>
+</html>

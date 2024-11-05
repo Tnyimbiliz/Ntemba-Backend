@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Select Role</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #6C63FF;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .role-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 300px;
+            text-align: center;
+        }
+
+        .role-container h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+            text-transform: uppercase;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #6C63FF;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .form-group button:hover {
+            background-color: #5a54e3;
+        }
+
+        #error-message {
+            color: red;
+            margin-top: 1rem;
+        }
+
+        #store-owner-login-btn {
+            background-color: #E04848; /* Updated background color for Store Owner */
+        }
+
+        #store-owner-login-btn:hover {
+            background-color: #c44141; /* Updated hover color for Store Owner */
+        }
+    </style>
+</head>
+<body>
+    <div class="role-container">
+        <h2>Choose Role</h2>
+        <div class="form-group">
+            <button id="user-login-btn" onclick="userInterface()">Login as User</button>
+        </div>
+        <div class="form-group">
+            <button id="store-owner-login-btn" onclick="storeInterface()" >Login as Store Owner</button>
+        </div>
+        <p id="error-message"></p>
+    </div>
+</body>
+<script>
+    const jwtToken = localStorage.getItem("jwt_token");
+
+    async function getUserType(){
+        const response = await fetch("/user/type/", {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${jwtToken}`,
+                "Content-Type": "application/json"
+            }
+        });
+    
+        if (response.ok) {
+    
+            const type = await response.json();
+    
+            if (type === "Delivery"){
+                alert(type);
+                localStorage.setItem("storeStatus", 2)
+                window.location.href = "/profile"; // Redirect to store Rider dashboard
+            }
+
+
+    
+        }
+    }
+
+    // Redirect to different interfaces based on user role
+    async function checkUserRole() {
+        if (!jwtToken) {
+            document.getElementById("error-message").textContent = "You must log in first.";
+            return;
+        } 
+
+        try {
+
+            const storeStatus = localStorage.getItem("storeStatus");
+
+            if (storeStatus == 2) {
+                window.location.href = "/profile"; // Redirect to store owner dashboard
+            }
+
+            if (storeStatus === "0"){
+                getUserType();
+                window.location.href = "/profile"; // Redirect to store owner dashboard
+            } else {
+            }
+            
+        } catch (error) {
+            document.getElementById("error-message").textContent = "Failed to check role.";
+        }
+    }
+
+    function userInterface() {
+        localStorage.setItem("storeStatus", 0)
+        window.location.href = "/profile";
+    }
+    
+    async function storeInterface(){
+        
+        localStorage.setItem("storeStatus", 1);
+        const token = localStorage.getItem("jwt_token");
+
+        const response = await fetch(`/store/get_storeid/`, {
+            method: "GET",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            }
+        });
+
+        if (response.ok) {
+            const store_id = await response.json();
+            localStorage.setItem("store_id", store_id);
+            
+        } else {
+            console.error("Failed to fetch user details:", response.statusText);
+            window.location.href = "/login"; // Redirect to login if unauthorized
+        }
+        window.location.href = "/profile";
+    }
+
+    getUserType();
+    checkUserRole();
+</script>
+</html>

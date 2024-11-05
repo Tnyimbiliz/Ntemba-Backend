@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #6C63FF;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 300px;
+            text-align: center;
+        }
+
+        .login-container h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+            text-transform: uppercase;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .form-group input[type="checkbox"] {
+            width: auto;
+            margin-right: 0.5rem;
+        }
+
+        .form-group button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #6C63FF;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .form-group button:hover {
+            background-color: #5a54e3;
+        }
+
+        .form-group.checkbox-label {
+            display: flex;
+            align-items: center;
+        }
+    
+        .form-group.checkbox-label input[type="checkbox"] {
+            margin-right: 0.5rem; /* Space between the checkbox and the label */
+        }
+    
+        .form-group.checkbox-label label {
+            margin: 0; /* Ensure there's no extra margin on the label */
+        }
+
+        #error-message {
+            color: red;
+            margin-top: 1rem;
+        }
+
+        .forgot-password {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #6C63FF;
+        }
+
+        .forgot-password a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Sign in to your account</h2>
+        <form id="login-form">
+            <div class="form-group">
+                <input type="text" id="username" name="username" placeholder="username..." required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="password" name="password" placeholder="******" required>
+            </div>
+            <div class="form-group checkbox-label">
+                <input type="checkbox" id="keep-signed-in">
+                <label for="keep-signed-in">Keep me signed in</label>
+            </div>
+            <div class="form-group">
+                <button type="submit">Sign in</button>
+            </div>
+            <p id="error-message"></p>
+        </form>
+        <div class="forgot-password">
+            <a href="#">Forgot your password?</a>
+        </div>
+        <div class="forgot-password">
+            <a href="/signup">New? Sign up here</a> <!-- New Sign Up link -->
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("login-form").onsubmit = async function (event) {
+            event.preventDefault();
+            const username = document.getElementById("username").value;
+            const password = document.getElementById("password").value;
+
+            const response = await fetch("/token", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded"
+                },
+                body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+            });
+
+            
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Save JWT token in localStorage
+                localStorage.setItem("jwt_token", data.access_token);
+                const jwtToken = localStorage.getItem("jwt_token");
+
+                const response2 = await fetch("/store/has_store/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${jwtToken}`
+                    }
+                });
+
+                if (response2.ok){
+                    const storeStatus = await response2.json();
+
+                    localStorage.setItem("storeStatus", storeStatus);
+
+                    const SS = localStorage.getItem("storeStatus");
+                    if (SS == 1) {
+                        window.location.href = "/role"; // Redirect to items page
+                    }else {
+                        window.location.href = "/profile"; // Redirect to items page
+                    }
+                } else {
+
+                }
+            } else {
+                document.getElementById("error-message").textContent = data.detail;
+            }
+        };
+    </script>
+</body>
+</html>

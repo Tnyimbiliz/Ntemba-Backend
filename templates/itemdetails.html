@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title id="title">Item Detail</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: var(--primary-color, #4b48e0);
+        margin: 0;
+        padding-top: 70px; /* Adjust padding to ensure content is not hidden under the navbar */
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        box-sizing: border-box;
+      }
+
+      /* Navbar styling */
+      .navbar {
+        background-color: var(--primary-color, #4b48e0);
+        position: fixed;
+        top: 0;
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 2rem;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        z-index: 1000;
+      }
+
+      .navbar .brand {
+        font-size: 1.5rem;
+        color: white;
+        font-weight: bold;
+        padding-left: 1rem;
+      }
+
+      .navbar .user-dropdown {
+        position: relative;
+        padding-right: 1rem;
+      }
+
+      .navbar .user-dropdown span {
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .navbar .dropdown-menu {
+        position: absolute;
+        right: 0;
+        top: 100%;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        width: 150px;
+        display: none; /* Default to hidden */
+        flex-direction: column;
+      }
+
+      .navbar .user-dropdown.active .dropdown-menu {
+        display: flex; /* Show menu when 'active' class is present */
+      }
+
+      .navbar .dropdown-menu a {
+        padding: 0.75rem 1rem;
+        text-decoration: none;
+        color: #333;
+        display: block;
+      }
+
+      .container {
+        background-color: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        width: 400px;
+        max-width: 90%; /* Ensure it fits on smaller screens */
+        text-align: center;
+        box-sizing: border-box;
+      }
+
+      .item-image {
+        width: 100%;
+        height: auto;
+        border-radius: 8px;
+        margin-bottom: 1rem;
+        display: none; /* Hidden by default */
+      }
+
+      .item-detail {
+        font-size: 1rem;
+        color: #333;
+        margin-bottom: 3rem; /* Add margin to create space for the button */
+      }
+
+      .item-detail h2 {
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+        color: #333;
+      }
+
+      .item-detail p {
+        margin: 0.5rem 0;
+      }
+
+      .action-button {
+        margin-top: 1rem;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        cursor: pointer;
+        text-transform: uppercase;
+        transition: background-color 0.3s ease;
+        width: 100%; /* Make the button take the full width */
+      }
+
+      .add-to-cart-button {
+        background-color: var(--primary-color, #4b48e0);
+        color: white;
+      }
+
+      .remove-from-cart-button,
+      .delete-item-button {
+        background-color: red;
+        color: white;
+      }
+
+      .add-to-cart-button:hover {
+        background-color: var(--primary-color, #4b48e0);
+      }
+
+      .remove-from-cart-button:hover,
+      .delete-item-button:hover {
+        background-color: #cc0000;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="navbar">
+      <div class="brand" onclick="shop()">NTEMBA</div>
+      <div class="user-dropdown">
+        <span id="user"></span>
+        <div class="dropdown-menu">
+          <a href="/profile">Profile</a>
+          <a href="/cart">Cart</a>
+          <a href="/orders"> Orders</a>
+          <a href="#" onclick="logout()">Logout</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <img id="item-image" class="item-image" alt="Item Image" />
+      <div class="item-detail">
+        <h2 id="item-name">Item Name</h2>
+        <p id="item-description">Description: Loading...</p>
+        <p id="item-price">Price: Loading...</p>
+        <p id="store-owner">Store Owner: Loading...</p>
+      </div>
+      <button
+        id="action-button"
+        class="action-button add-to-cart-button"
+        onclick="toggleCart()"
+        disabled
+      >
+        Add to Cart
+      </button>
+    </div>
+
+    <script>
+      let itemId = null;
+      let isInCart = false; // Track if the item is in the cart
+      let isByMe = false;
+
+      document
+        .querySelector(".user-dropdown span")
+        .addEventListener("click", function () {
+          const dropdown = document.querySelector(".user-dropdown");
+          dropdown.classList.toggle("active");
+        });
+
+      function shop() {
+        window.location.href = "/items";
+      }
+
+      async function getUsername() {
+        const token = localStorage.getItem("jwt_token");
+        const storeStatus = localStorage.getItem("storeStatus");
+
+        if (storeStatus == 1) {
+          // Fetch the store name if the user is a store owner
+          const response = await fetch("/store/storename/", {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const store = await response.json();
+            document.getElementById("user").textContent = store.toUpperCase(); // Display store name
+          } else {
+            console.error("Failed to fetch store name:", response.statusText);
+          }
+        } else {
+          // Fetch the username if the user is not a store owner
+          const response = await fetch("/user/details/", {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const user = await response.json();
+            document.getElementById("user").textContent =
+              user.username.toUpperCase(); // Display username
+          } else {
+            console.error("Failed to fetch user details:", response.statusText);
+            window.location.href = "/login"; // Redirect to login if unauthorized
+          }
+        }
+      }
+
+      async function getItemDetails() {
+        itemId = window.location.pathname.split("/").pop();
+        const token = localStorage.getItem("jwt_token");
+
+        // Initially disable the action button and hide it
+        const actionButton = document.getElementById("action-button");
+        actionButton.disabled = true;
+        actionButton.style.display = "none";
+
+        try {
+          const [itemResponse, cartResponse] = await Promise.all([
+            fetch(`/item/get_item_by_id/${itemId}`, {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }),
+            fetch(`/cart/items/`, {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }),
+          ]);
+
+          const item = await itemResponse.json();
+          const cart = await cartResponse.json();
+
+          // Update item details on the page
+          document.getElementById("item-name").textContent = item.name;
+          document.getElementById(
+            "item-description"
+          ).textContent = `Description: ${item.description}`;
+          document.getElementById(
+            "item-price"
+          ).textContent = `Price: K${item.price}`;
+
+          // Set item image if available
+          if (item.image_url) {
+            console.log(item.image_url)
+            const itemImage = document.getElementById("item-image");
+            itemImage.style.display = "block";
+          }
+
+          // Other item detail logic follows...
+        } catch (error) {
+          console.error("Error fetching item details or cart:", error);
+        }
+      }
+
+      async function checkItemInCart() {
+        const token = localStorage.getItem("jwt_token");
+        const actionButton = document.getElementById("action-button");
+
+        try {
+          const response = await fetch("/cart/items/", {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            const cartItems = await response.json();
+            isInCart = cartItems.some((item) => item.item_id === itemId);
+
+            if (isInCart) {
+              actionButton.textContent = "Remove from Cart";
+              actionButton.classList.remove("add-to-cart-button");
+              actionButton.classList.add("remove-from-cart-button");
+            } else {
+              actionButton.textContent = "Add to Cart";
+              actionButton.classList.remove("remove-from-cart-button");
+              actionButton.classList.add("add-to-cart-button");
+            }
+          }
+        } catch (error) {
+          console.error("Failed to load cart items:", error);
+        }
+      }
+
+      async function toggleCart() {
+        const token = localStorage.getItem("jwt_token");
+        const actionButton = document.getElementById("action-button");
+
+        if (isByMe) {
+          // Remove item from store
+          const response = await fetch(`/item/delete_item/${itemId}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            alert("Item deleted successfully!");
+            window.location.href = "/items"; //redirect to main page
+          } else {
+            console.error(
+              "Failed to remove item from cart:",
+              response.statusText
+            );
+          }
+        } else if (isInCart) {
+          // Remove item from cart
+          const response = await fetch(`/cart/remove_item/${itemId}`, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (response.ok) {
+            actionButton.textContent = "Add to Cart";
+            actionButton.classList.remove("remove-from-cart-button");
+            actionButton.classList.add("add-to-cart-button");
+            isInCart = false;
+          } else {
+            console.error(
+              "Failed to remove item from cart:",
+              response.statusText
+            );
+          }
+        } else {
+          // Add item to cart
+          const response = await fetch("/cart/add_item/", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              item_id: itemId,
+              quantity: 1, // Default quantity is 1
+            }),
+          });
+
+          if (response.ok) {
+            actionButton.textContent = "Remove from Cart";
+            actionButton.classList.remove("add-to-cart-button");
+            actionButton.classList.add("remove-from-cart-button");
+            isInCart = true;
+          } else {
+            console.error("Failed to add item to cart:", response.statusText);
+          }
+        }
+      }
+
+      function logout() {
+        localStorage.removeItem("jwt_token");
+        localStorage.removeItem("storeStatus");
+        window.location.href = "/login";
+      }
+
+      function applyStoreStatusTheme() {
+        const storeStatus = localStorage.getItem("storeStatus");
+        const root = document.documentElement;
+        const actionButton = document.getElementById("action-button");
+
+        if (storeStatus == 1) {
+          // If store owner, change the primary color to red
+          root.style.setProperty("--primary-color", "#E04848");
+
+          // Fetch store ID to determine if the store owner is viewing their own item
+          const token = localStorage.getItem("jwt_token");
+
+          fetch(`/store/get_storeid/`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          })
+            .then((response) => response.json())
+            .then((storeID) => {
+              if (itemId && storeID) {
+                fetch(`/item/get_item_by_id/${itemId}`, {
+                  method: "GET",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                  },
+                })
+                  .then((response) => response.json())
+                  .then((item) => {
+                    if (item.store_id == storeID) {
+                      // This is the store owner's own item; allow deletion
+                      actionButton.textContent = "Delete Item";
+                      actionButton.classList.remove(
+                        "add-to-cart-button",
+                        "remove-from-cart-button"
+                      );
+                      actionButton.classList.add("delete-item-button");
+                      actionButton.disabled = false; // Allow the delete action
+                    } else {
+                      // The store owner is viewing another store's item; grey out add to cart
+                      actionButton.textContent = "Add to Cart";
+                      actionButton.classList.add("add-to-cart-button");
+                      actionButton.disabled = true; // Disable the button
+                      actionButton.style.backgroundColor = "#ccc"; // Greyed out color
+                      actionButton.style.cursor = "not-allowed";
+                    }
+                  });
+              }
+            })
+            .catch((error) => {
+              console.error("Error fetching store ID:", error);
+            });
+        } else {
+          const dropdownMenu = document.querySelector(".dropdown-menu");
+          const createStoreLink = document.createElement("a");
+          createStoreLink.href = "/create_store";
+          createStoreLink.textContent = "Create Store✅";
+          dropdownMenu.insertBefore(
+            createStoreLink,
+            dropdownMenu.querySelector('a[href="#"]')
+          ); // Insert above Logout
+        }
+      }
+
+      applyStoreStatusTheme();
+      getUsername();
+      getItemDetails();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up</title>
+    <style>
+        /* Your existing styles for the login page, plus any new ones for the signup page */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #6C63FF;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .signup-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 300px;
+            text-align: center;
+        }
+
+        .signup-container h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+            text-transform: uppercase;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .form-group button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #6C63FF;
+            border: none;
+            color: white;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .form-group button:hover {
+            background-color: #5a54e3;
+        }
+
+        #error-message {
+            color: red;
+            margin-top: 1rem;
+        }
+
+        #success-message {
+            color: green;
+            margin-top: 1rem;
+        }
+
+        .login-link {
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            color: #6C63FF;
+        }
+
+        .login-link a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .login-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="signup-container">
+        <h2>Create a New Account</h2>
+        <form id="signup-form">
+            <div class="form-group">
+                <input type="text" id="username" name="username" placeholder="Username" required>
+            </div>
+            <div class="form-group">
+                <input type="text" id="full_name" name="full_name" placeholder="full_name" required>
+            </div>
+            <div class="form-group">
+                <input type="email" id="email" name="email" placeholder="Email" required>
+            </div>
+            <div class="form-group">
+                <input type="password" id="password" name="password" placeholder="Password" required>
+            </div>
+            <div class="form-group">
+                <button type="submit">Sign Up</button>
+            </div>
+            <p id="error-message"></p>
+            <p id="success-message"></p>
+        </form>
+        <div class="login-link">
+            <a href="/login">Already have an account? Sign in here</a>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById("signup-form").onsubmit = async function (event) {
+            event.preventDefault();
+            const username = document.getElementById("username").value;
+            const full_name = document.getElementById("full_name").value;
+            const email = document.getElementById("email").value;
+            const password = document.getElementById("password").value;
+
+
+            const response = await fetch("/user/", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    username: username,
+                    email: email,
+                    full_name: full_name,
+                    password: password,
+                    type: 0 // Assuming 'type' is required, and 0 represents a normal user
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                document.getElementById("success-message").textContent = "Account created successfully! Redirecting to login...";
+                setTimeout(() => {
+                    window.location.href = "/login"; // Redirect to login page after 2 seconds
+                }, 2000);
+            } else {
+                document.getElementById("error-message").textContent = data.detail || "Failed to create account.";
+            }
+        };
+    </script>
+</body>
+</html>

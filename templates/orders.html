@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Orders</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: var(--primary-color, #4B48E0);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .navbar {
+            background-color: var(--primary-color, #4B48E0);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .navbar .brand {
+            font-size: 1.5rem;
+            color: white;
+            font-weight: bold;
+            padding-left: 1rem;
+        }
+
+        .navbar .user-dropdown {
+            position: relative;
+            padding-right: 1rem;
+        }
+
+        .navbar .user-dropdown span {
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .navbar .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 150px;
+            display: none;
+            flex-direction: column;
+        }
+
+        .navbar .user-dropdown.active .dropdown-menu {
+            display: flex;
+        }
+
+        .navbar .dropdown-menu a {
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: #333;
+            display: block;
+        }
+
+        .orders-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 800px;
+            margin-top: 100px;
+        }
+
+        .orders-container h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+            text-align: center;
+        }
+
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            background-color: #f7f7f7;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .order-item:hover {
+            background-color: #e0e0e0;
+        }
+
+        .order-item-details {
+            flex-grow: 1;
+            margin-left: 1rem;
+        }
+
+        .order-item-details h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #333;
+        }
+
+        .order-item-details p {
+            margin: 0.5rem 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .order-status {
+            font-weight: bold;
+            color: #4B48E0;
+        }
+
+        @media (max-width: 600px) {
+            .order-item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .order-item-details {
+                margin-left: 0;
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="brand" onclick="shop()">NTEMBA</div>
+        <div class="user-dropdown">
+            <span id="user"></span>
+            <div class="dropdown-menu">
+                <a href="/profile">Profile</a>
+                <a href="/cart">Cart</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </div>
+    <div class="orders-container">
+        <h2>Your Orders</h2>
+        <div id="orders-list">
+            <!-- Orders will be injected here by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        document.querySelector('.user-dropdown span').addEventListener('click', function() {
+            const dropdown = document.querySelector('.user-dropdown');
+            dropdown.classList.toggle('active');
+        });
+
+        function shop() {
+            window.location.href = "/items";
+        }
+
+        async function getUsername() {
+            const token = localStorage.getItem("jwt_token");
+            const storeStatus = localStorage.getItem("storeStatus");
+
+            if (storeStatus == 1) {
+                // Fetch the store name if the user is a store owner
+                const response = await fetch("/store/storename/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (response.ok) {
+                    const store = await response.json();
+                    document.getElementById("user").textContent = store.toUpperCase(); // Display store name
+                } else {
+                    console.error("Failed to fetch store name:", response.statusText);
+                }
+            } else {
+                // Fetch the username if the user is not a store owner
+                const response = await fetch("/user/details/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+
+                if (response.ok) {
+                    const user = await response.json();
+                    document.getElementById("user").textContent = user.username.toUpperCase(); // Display username
+                } else {
+                    console.error("Failed to fetch user details:", response.statusText);
+                    window.location.href = "/login"; // Redirect to login if unauthorized
+                }
+            }
+        }
+
+        async function loadOrders() {
+            const token = localStorage.getItem("jwt_token");
+            const storeStatus = localStorage.getItem("storeStatus");
+
+            let response;
+
+            if (storeStatus == 1) {
+                // Fetch orders for the store owner
+                response = await fetch("/order/customer_orders/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+            } else if (storeStatus == 2) {
+                // Fetch only confirmed orders for the rider
+                response = await fetch("/order/riders_orders/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+            } else {
+                // Fetch orders for regular users
+                response = await fetch("/order/", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    }
+                });
+            }
+
+            if (response.ok) {
+                const orders = await response.json();
+                const ordersList = document.getElementById("orders-list");
+                ordersList.innerHTML = ""; // Clear any existing orders
+
+                // Filter orders for riders to show only those that are confirmed
+                const filteredOrders = (storeStatus == 2) ? orders.filter(order => order.status === "Confirmed") : orders;
+
+                filteredOrders.forEach(order => {
+                    const orderElement = document.createElement("div");
+                    orderElement.classList.add("order-item");
+                    orderElement.onclick = () => {
+                        window.location.href = `/order_details/${order.id}`;
+                    };
+
+                    orderElement.innerHTML = `
+                        <div class="order-item-details">
+                            <h3>${order.id.toUpperCase()}</h3>
+                            <p>Total Price: $${order.total_price.toFixed(2)}</p>
+                        </div>
+                        <div class="order-status">${order.status}</div>
+                    `;
+
+                    ordersList.appendChild(orderElement);
+                });
+            } else {
+                console.error("Failed to load orders");
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("jwt_token");
+            localStorage.removeItem("storeStatus");
+            window.location.href = "/login";
+        }
+
+        function applyStoreStatusTheme() {
+            const storeStatus = localStorage.getItem("storeStatus");
+            const root = document.documentElement;
+
+            if (storeStatus == 1) {
+                // If store owner, change the primary color to red
+                root.style.setProperty('--primary-color', '#E04848');
+            } else if (storeStatus == 2) {
+                // If rider, change the primary color to green
+                root.style.setProperty('--primary-color', '#28a745');
+            } else {
+                const dropdownMenu = document.querySelector('.dropdown-menu');
+                const createStoreLink = document.createElement('a');
+                createStoreLink.href = "/create_store";
+                createStoreLink.textContent = "Create Store✅";
+                dropdownMenu.insertBefore(createStoreLink, dropdownMenu.querySelector('a[href="#"]')); // Insert above Logout
+            }
+        }
+
+        applyStoreStatusTheme();
+        getUsername();
+        loadOrders();
+    </script>
+</body>
+</html>

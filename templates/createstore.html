@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Store</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: var(--primary-color, #4B48E0);
+            margin: 0;
+            padding-top: 70px; /* Adjust padding to ensure content is not hidden under the navbar */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+
+        /* Navbar styling */
+        .navbar {
+            background-color: var(--primary-color, #4B48E0);
+            position: fixed;
+            top: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .navbar .brand {
+            font-size: 1.5rem;
+            color: white;
+            font-weight: bold;
+        }
+
+        .navbar .user-dropdown {
+            position: relative;
+        }
+
+        .navbar .user-dropdown span {
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .navbar .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 150px;
+            display: none; /* Default to hidden */
+            flex-direction: column;
+        }
+
+        .navbar .user-dropdown.active .dropdown-menu {
+            display: flex; /* Show menu when 'active' class is present */
+        }
+
+        .navbar .dropdown-menu a {
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: #333;
+            display: block;
+        }
+
+        /* Container styling */
+        .container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 400px;
+            max-width: 90%; /* Ensure it fits on smaller screens */
+            text-align: center;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        label {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            display: block;
+            color: #333;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            margin-bottom: 1.5rem;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+        }
+
+        .create-store-button {
+            background-color: var(--primary-color, #4B48E0);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+        }
+
+        .create-store-button:hover {
+            background-color: #3735b5;
+        }
+
+        .message {
+            color: green;
+            margin-top: 1rem;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="brand" onclick="shop()">NTEMBA</div>
+        <div class="user-dropdown">
+            <span id="user"></span>
+            <div class="dropdown-menu">
+                <a href="/profile">Profile</a>
+                <a href="/cart">Cart</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Create Your Store</h2>
+        <label for="store-name">Store Name:</label>
+        <input type="text" id="store-name" placeholder="Enter your store name" />
+        <button id="create-store-btn" class="create-store-button" onclick="createStore()">Create Store</button>
+        <p id="message" class="message" style="display:none;">Store created successfully!</p>
+    </div>
+
+    <script>
+        document.querySelector('.user-dropdown span').addEventListener('click', function() {
+            const dropdown = document.querySelector('.user-dropdown');
+            dropdown.classList.toggle('active');
+        });
+
+        function shop(){
+            window.location.href = "/items"
+        }
+
+        async function getUsername() {
+            const token = localStorage.getItem("jwt_token");
+            const response = await fetch("/user/details/", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (response.ok) {
+                const user = await response.json();
+                document.getElementById("user").textContent = user.username.toUpperCase();
+            } else {
+                window.location.href = "/login"; // Redirect to login if unauthorized
+            }
+        }
+
+        async function checkStoreStatus() {
+            const jwt_token = localStorage.getItem("jwt_token");
+            const storeStatus = localStorage.getItem("storeStatus");
+
+            // If storeStatus is 1, the user already has a store
+            const response = await fetch("/store/has_store/", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${jwt_token}`
+                }
+            });
+
+            if (response.ok) {
+                const storeStatus = await response.json();
+
+                if (storeStatus == 1){
+                    alert("YOU ALREADY HAVE A STORE!");
+                    localStorage.setItem("storeStatus", 1);
+                    window.location.href = "/role";
+                }
+            }
+        }
+
+        async function createStore() {
+            const storeName = document.getElementById("store-name").value.trim();
+            const token = localStorage.getItem("jwt_token");
+
+            if (storeName === "") {
+                alert("Please enter a store name.");
+                return;
+            }
+
+            try {
+                const response = await fetch("/store/", {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ name: storeName })
+                });
+
+                if (response.ok) {
+                    // Store created successfully
+                    document.getElementById("message").style.display = "block";
+                    localStorage.setItem("storeStatus", 1); // Update store status
+
+                    // Redirect to add item page after a short delay
+                    setTimeout(() => {
+                        window.location.href = "/my_items";
+                    }, 2000); // Delay for 2 seconds
+                } else {
+                    console.error("Failed to create store:", response.statusText);
+                    window.location.href = "/my_items";
+                }
+            } catch (error) {
+                console.error("Error creating store:", error);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("jwt_token");
+            localStorage.removeItem("storeStatus");
+            window.location.href = "/login";
+        }
+
+        // Initial function calls
+        checkStoreStatus();
+        getUsername();
+    </script>
+</body>
+</html>

@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Cart</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #6C63FF;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        /* Navbar styling */
+        .navbar {
+            background-color: #4B48E0;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+        }
+
+        .navbar .brand {
+            font-size: 1.5rem;
+            color: white;
+            font-weight: bold;
+            padding-left: 1rem;
+        }
+
+        .navbar .user-dropdown {
+            position: relative;
+            padding-right: 1rem;
+        }
+
+        .navbar .user-dropdown span {
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .navbar .dropdown-menu {
+            position: absolute;
+            right: 0;
+            top: 100%;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 150px;
+            display: none; /* Default to hidden */
+            flex-direction: column;
+        }
+        
+        .navbar .user-dropdown.active .dropdown-menu {
+            display: flex; /* Show menu when 'active' class is present */
+        }
+
+        .navbar .dropdown-menu a {
+            padding: 0.75rem 1rem;
+            text-decoration: none;
+            color: #333;
+            display: block;
+        }
+
+        .cart-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            max-width: 800px;
+            margin: 20px;
+        }
+
+        .cart-container h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: #333;
+            text-align: center;
+        }
+
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+        }
+
+        .cart-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .cart-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .cart-item-details {
+            flex-grow: 1;
+            margin-left: 1rem;
+        }
+
+        .cart-item-details h3 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #333;
+        }
+
+        .cart-item-details h3 span {
+            font-size: 0.9rem;
+            color: #6C63FF;
+            margin-left: 10px;
+        }
+
+        .cart-item-details p {
+            margin: 0.5rem 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .cart-summary {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 2px solid #6C63FF;
+            padding-top: 1rem;
+        }
+
+        .cart-summary span {
+            font-size: 1.2rem;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .checkout-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .checkout-button {
+            margin-top: 10px;
+            background-color: #6C63FF;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: background-color 0.3s ease;
+        }
+
+        .checkout-button:hover {
+            background-color: #5a54e3;
+        }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <div class="brand" onclick="shop()">NTEMBA</div>
+        <div class="user-dropdown">
+            <span id="user"></span>
+            <div class="dropdown-menu">
+                <a href="/profile">Profile</a>
+                <a href="/cart">Cart</a>
+                <a href="#" onclick="logout()">Logout</a>
+            </div>
+        </div>
+    </div>
+    <div class="cart-container">
+        <h2>Your Cart</h2>
+        <div id="cart-items">
+            <!-- Cart items will be injected here by JavaScript -->
+        </div>
+        <div class="cart-summary">
+            <span>Total:</span>
+            <span id="total-price">K-.--</span>
+        </div>
+        <div class="checkout-container">
+            <button class="checkout-button" onclick="checkout()">Checkout</button>
+        </div>
+    </div>
+
+    <script>
+
+        document.querySelector('.user-dropdown span').addEventListener('click', function() {
+            const dropdown = document.querySelector('.user-dropdown');
+            dropdown.classList.toggle('active');
+        });
+
+        function shop(){
+            window.location.href = "/items"
+        }
+
+        function logout() {
+            localStorage.removeItem("jwt_token");
+            localStorage.removeItem("storeStatus");
+            window.location.href = "/login";
+        }
+
+        async function loadCart() {
+            const token = localStorage.getItem("jwt_token");
+
+            const response = await fetch("/cart/items/", {
+                method: "GET",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (response.ok) {
+                const cartItems = await response.json();
+                let totalPrice = 0;
+
+                const cartItemsContainer = document.getElementById("cart-items");
+                cartItemsContainer.innerHTML = ""; // Clear any existing items
+
+                cartItems.forEach(item => {
+                    const itemTotalPrice = item.price * item.quantity;
+                    totalPrice += itemTotalPrice;
+
+                    const cartItemElement = document.createElement("div");
+                    cartItemElement.classList.add("cart-item");
+                    cartItemElement.onclick = () => {
+                        window.location.href = `/item-details/${item.item_id}`; // Redirect to the item detail page
+                    };
+
+                    cartItemElement.innerHTML = `
+                        <div class="cart-item-details">
+                            <h3>${item.name}${item.quantity > 1 ? `<span>x${item.quantity}</span>` : ''}</h3>
+                            <p>${item.description}</p>
+                        </div>
+                        <div class="cart-item-price">K${itemTotalPrice.toFixed(2)}</div>
+                    `;
+
+                    cartItemsContainer.appendChild(cartItemElement);
+                });
+
+                document.getElementById("total-price").textContent = `K${totalPrice.toFixed(2)}`;
+            } else {
+                console.error("Failed to load cart items");
+            }
+        }
+
+        async function checkout(){
+            // Fetch store details
+            const token = localStorage.getItem("jwt_token");
+            const checkoutResponse = await fetch(`/cart/checkout_order/`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                    "Content-Type": "application/json"
+                }
+            });
+
+            if (checkoutResponse.ok) {
+                const store = await checkoutResponse.json();
+                alert("SUCCESSFULLY PLACED ORDER!✅")
+                window.location.href = ""
+            } else {
+                console.error("Failed to fetch store details:", storeResponse.statusText);
+            }
+
+        }
+
+        loadCart();
+    </script>
+</body>
+</html>
