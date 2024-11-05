@@ -4,3 +4,7 @@ jinja2
 python-multipart
 starlette
 uvicorn
+passlib[bcrypt]  # For password hashing
+pymongo  # For MongoDB integration
+shortuuid  # For generating short unique IDs
+jwt  # For JSON Web Token management
