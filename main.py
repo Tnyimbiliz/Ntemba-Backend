@@ -32,7 +32,9 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 origins = [
     "http://localhost:3000",   # React local dev server, if applicable
     "http://localhost:8000",   # Your current local frontend server
-    "https://ntembaz.com",     # Your production frontend domain
+    "https://www.ntembaz.com",     # Your production frontend domain
+    "https://ntembaz.com",    
+    "https://www.ntembaz.onrender.com"
 ]
 
 app.add_middleware(
