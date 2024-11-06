@@ -28,13 +28,19 @@ app.include_router(store.router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Update `origins` to include localhost and your frontend's production URL
+origins = [
+    "http://localhost:3000",   # React local dev server, if applicable
+    "http://localhost:8000",   # Your current local frontend server
+    "https://ntembaz.com",     # Your production frontend domain
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Update this with your frontend's origin if you want to restrict access
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=origins,       # Allow specified origins
+    allow_credentials=True,      # Allow credentials if needed (e.g., cookies)
+    allow_methods=["*"],         # Allow all HTTP methods
+    allow_headers=["*"],         # Allow all headers
 )
 
 templates = Jinja2Templates(directory="templates")

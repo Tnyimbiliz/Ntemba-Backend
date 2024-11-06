@@ -140,7 +140,7 @@
             const username = document.getElementById("username").value;
             const password = document.getElementById("password").value;
 
-            const response = await fetch("/token", {
+            const response = await fetch("https://ntembaapi.onrender.com/token", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded"
@@ -157,7 +157,7 @@
                 localStorage.setItem("jwt_token", data.access_token);
                 const jwtToken = localStorage.getItem("jwt_token");
 
-                const response2 = await fetch("/store/has_store/", {
+                const response2 = await fetch("https://ntembaapi.onrender.com/store/has_store/", {
                     method: "GET",
                     headers: {
                         "Authorization": `Bearer ${jwtToken}`
