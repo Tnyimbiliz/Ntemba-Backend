@@ -8,3 +8,4 @@ passlib[bcrypt]  # For password hashing
 pymongo  # For MongoDB integration
 shortuuid  # For generating short unique IDs
 pyjwt  # For JSON Web Token management
+pydantic[email]
