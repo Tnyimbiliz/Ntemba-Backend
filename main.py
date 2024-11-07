@@ -7,12 +7,9 @@ from fastapi import FastAPI, Depends
 from fastapi.responses import HTMLResponse
 from starlette.requests import Request
 
-# to run 
-# uvicorn main:app --reload
-
 
 #from other files
-import item, user, cart, order, store
+import item, user, cart, order, store, register
 
 # Create FastAPI instance
 app = FastAPI()
@@ -25,6 +22,7 @@ app.include_router(item.router)
 app.include_router(cart.router)
 app.include_router(order.router)
 app.include_router(store.router)
+app.include_router(register.router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
@@ -37,6 +35,10 @@ app.add_middleware(
 )
 
 templates = Jinja2Templates(directory="templates")
+
+@app.get("/")
+async def ping(request:Request):
+    return {"data":"pinged successfully"}
 
 # Endpoint to serve the login page
 @app.get("/login", response_class=HTMLResponse)
