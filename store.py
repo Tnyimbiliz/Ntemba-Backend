@@ -64,13 +64,21 @@ async def get_store(store_id: str):
 
 # Endpoint to list all stores
 @router.get("/", response_model=List[Store])
-async def list_stores(current_user: UserInDB = Depends(get_current_active_user)):
-    if current_user.type == 1:  # If the user is an admin
-        stores = store_collection.find({})
-    else:  # Only show verified stores to non-admin users
-        stores = store_collection.find({"verified": 1})
+async def list_stores():
+    # only show verified stores
+    stores = store_collection.find({"verified": 1})
     
     return [Store(**store) for store in stores]
+
+# Endpoint to list unverified stores
+@router.get("/pending", response_model=List[Store])
+async def list_pending_stores(current_user: UserInDB = Depends(get_current_active_user)):
+    if current_user.type == 1:  # If the user is an admin
+        stores = store_collection.find({"verified": 0}) #show only pending stores
+    else: 
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    return [Store(**store) for store in stores]
+
 
 # Endpoint to list all stores
 @router.put("/verify/{store_id}", response_model=Store)
