@@ -97,7 +97,7 @@ async def get_customer_orders(current_user: UserInDB = Depends(get_current_activ
             result.append(order_info)
 
     if not result:
-        raise HTTPException(status_code=404, detail="No orders found for the user's store")
+        return []
 
     return result
 
