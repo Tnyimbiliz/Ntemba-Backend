@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 import shortuuid
-from typing import List, Dict
+from typing import List, Dict, Union
 from bson import ObjectId
 from random import randint
 from database import order_collection, cart_collection, items_collection, store_collection
@@ -63,13 +63,13 @@ async def get_orders(current_user: UserInDB = Depends(get_current_active_user)):
     return result
 
 # Get all orders for the current user's store with only item IDs and names 
-@router.get("/customer_orders/", response_model=List[OrderSummary])
+@router.get("/customer_orders/", response_model= Union[List[OrderSummary], dict])
 async def get_customer_orders(current_user: UserInDB = Depends(get_current_active_user)):
     # Step 1: Find the store that belongs to the current user
     store = store_collection.find_one({"user_id": current_user.id})  # Use find_one to get a single document
     
     if not store:
-        raise HTTPException(status_code=404, detail="Store not found for the current user")
+        return {"detail":"this user does not have a store"}
 
     # Step 2: Find orders where the current user's store ID is in the store_ids field
     orders = order_collection.find({"store_ids": store["id"]})
@@ -97,7 +97,7 @@ async def get_customer_orders(current_user: UserInDB = Depends(get_current_activ
             result.append(order_info)
 
     if not result:
-        return []
+        []
 
     return result
 

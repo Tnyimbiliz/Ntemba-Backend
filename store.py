@@ -132,19 +132,12 @@ async def get_store(store_id: str):
     raise HTTPException(status_code=404, detail="Store not found")
 
 # Endpoint to get whether the user is an admin or not
-@router.get("/get_storeid/")
-async def get_store_id(current_user: UserInDB = Depends(get_current_active_user)):
+@router.get("/details/")
+async def get_this_store_details(current_user: UserInDB = Depends(get_current_active_user)):
     store = store_collection.find_one({"user_id": current_user.id})
     if store:
-        return store["id"]
-    raise HTTPException(status_code=404, detail="Store not found")
-    
-# Endpoint to get whether the user is an admin or not
-@router.get("/storename/")
-async def get_this_store_name(current_user: UserInDB = Depends(get_current_active_user)):
-    store = store_collection.find_one({"user_id": current_user.id})
-    if store:
-        return store["name"]
+        return {"id": store['id'],
+                "name": store['name']}
     raise HTTPException(status_code=404, detail="Store not found")
     
 # Endpoint to get whether the user is an admin or not
