@@ -69,7 +69,7 @@ async def get_customer_orders(current_user: UserInDB = Depends(get_current_activ
     store = store_collection.find_one({"user_id": current_user.id})  # Use find_one to get a single document
     
     if not store:
-        return {"detail":"this user does not have a store"}
+        return []
 
     # Step 2: Find orders where the current user's store ID is in the store_ids field
     orders = order_collection.find({"store_ids": store["id"]})
@@ -130,7 +130,7 @@ async def get_riders_orders(current_user: UserInDB = Depends(get_current_active_
             result.append(order_info)
 
     if not result:
-        raise HTTPException(status_code=404, detail="No orders found for the user's store")
+        []
 
     return result
 
