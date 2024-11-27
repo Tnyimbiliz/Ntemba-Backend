@@ -121,6 +121,8 @@ async def get_user_type(current_user: UserInDB = Depends(get_current_active_user
     if current_user.type == 1:
         return "Administrator"
     elif current_user.type == 2:
+        return "Store"
+    elif current_user.type == 3:
         return "Delivery"
     else:
         return "Normal"
@@ -128,8 +130,10 @@ async def get_user_type(current_user: UserInDB = Depends(get_current_active_user
 # Endpoint to get whether the user is an admin or not
 @router.put("/user/register_rider/")
 async def get_user_type(current_user: UserInDB = Depends(get_current_active_user)):
-    if current_user.type == 2:
+    if current_user.type == 3:
         raise HTTPException(status_code=404, detail="You are already registered as a rider")
+    if current_user.type == 2:
+        raise HTTPException(status_code=404, detail="A Store cannot register as a rider")
     elif current_user.type == 1:
         raise HTTPException(status_code=404, detail="Admin cannot register as a rider")
     else:
