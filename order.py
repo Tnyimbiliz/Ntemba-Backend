@@ -104,6 +104,9 @@ async def get_customer_orders(current_user: UserInDB = Depends(get_current_activ
 # Get all orders for the rider that have been confirmed
 @router.get("/riders_orders/", response_model=List[OrderSummary])
 async def get_riders_orders(current_user: UserInDB = Depends(get_current_active_user)):
+    # step 1: Check if the current user is a biker or an admin
+    if current_user.type != 3:
+        raise HTTPException(status_code=401, detail="Unauthorized")
     # Step 2: Find orders where the current user's store ID is in the store_ids field
     orders = order_collection.find({"status": "Confirmed"})
 
@@ -130,7 +133,7 @@ async def get_riders_orders(current_user: UserInDB = Depends(get_current_active_
             result.append(order_info)
 
     if not result:
-        []
+        return []
 
     return result
 
