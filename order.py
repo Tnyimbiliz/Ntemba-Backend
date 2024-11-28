@@ -28,6 +28,7 @@ class Order(BaseModel):
 class OrderInDB(Order):
     id: str = Field(default_factory=shortuuid.uuid)
     store_id: str
+    rider_id:str = None
 
 # Define a new model for the get_orders endpoint
 class OrderSummary(BaseModel):
@@ -36,20 +37,28 @@ class OrderSummary(BaseModel):
     status: str
     confirmation_code: str
     items: List[Dict[str, str]]
-
+    
+class OrderSummaryAlt(BaseModel):
+    id: str
+    total_price: float
+    status: str
+    items: List[Dict[str, str]]  # Includes only item_id and name
+    
 router = APIRouter(
     prefix='/order',
     tags=['order']
 )
 
 # Get all orders for the current user with only item IDs and names
-@router.get("/", response_model=List[OrderSummary])
+@router.get("/", response_model=Union[List[OrderSummary], List[OrderSummary], dict])
 async def get_orders(current_user: UserInDB = Depends(get_current_active_user)):
     orders = order_collection.find({"user_id": current_user.id})
+    
     if not orders:
-        raise HTTPException(status_code=404, detail="No orders found for the user")
-
+        return {"Message":"No Orders found"}
+    
     result = []
+    
     for order in orders:
         order_info = OrderSummary(
             id=order['id'],
@@ -58,13 +67,16 @@ async def get_orders(current_user: UserInDB = Depends(get_current_active_user)):
             confirmation_code = order['confirmation_code'],
             items=[{"item_id": item['item_id'], "name": item['name']} for item in order['items']]
         )
-        result.append(order_info)
+    result.append(order_info)
 
     return result
 
 # Get all orders for the current user's store with only item IDs and names 
-@router.get("/customer_orders/", response_model= Union[List[OrderSummary], dict])
+@router.get("/customer_orders/", response_model= Union[List[OrderSummaryAlt], dict])
 async def get_customer_orders(current_user: UserInDB = Depends(get_current_active_user)):
+    if current_user.type != 2:
+        return {"message":"Not Authorized, You must to be a store owner"}
+    
     # Step 1: Find the store that belongs to the current user
     store = store_collection.find_one({"user_id": current_user.id})  # Use find_one to get a single document
     
@@ -87,11 +99,10 @@ async def get_customer_orders(current_user: UserInDB = Depends(get_current_activ
         ]
 
         if filtered_items:  # Only add orders with relevant items
-            order_info = OrderSummary(
+            order_info = OrderSummaryAlt(
                 id=order['id'],
                 total_price=order['total_price'],
                 status=order['status'],
-                confirmation_code=order['confirmation_code'],
                 items=filtered_items
             )
             result.append(order_info)
@@ -102,11 +113,11 @@ async def get_customer_orders(current_user: UserInDB = Depends(get_current_activ
     return result
 
 # Get all orders for the rider that have been confirmed
-@router.get("/riders_orders/", response_model=List[OrderSummary])
+@router.get("/riders_orders/", response_model=Union[List[OrderSummaryAlt], dict])
 async def get_riders_orders(current_user: UserInDB = Depends(get_current_active_user)):
     # step 1: Check if the current user is a biker or an admin
     if current_user.type != 3:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+        return {"message": "Not Authorized, you must be a rider"}
     # Step 2: Find orders where the current user's store ID is in the store_ids field
     orders = order_collection.find({"status": "Confirmed"})
 
@@ -123,11 +134,10 @@ async def get_riders_orders(current_user: UserInDB = Depends(get_current_active_
         ]
 
         if filtered_items:  # Only add orders with relevant items
-            order_info = OrderSummary(
+            order_info = OrderSummaryAlt(
                 id=order['id'],
                 total_price=order['total_price'],
                 status=order['status'],
-                confirmation_code=order['confirmation_code'],
                 items=filtered_items
             )
             result.append(order_info)
@@ -137,22 +147,82 @@ async def get_riders_orders(current_user: UserInDB = Depends(get_current_active_
 
     return result
 
+@router.put("/accept_delivery/{order_id}")
+async def accept_delivery(order_id: str, current_user: UserInDB = Depends(get_current_active_user)):
+    # Ensure the user is a rider
+    if current_user.type != 3:
+        return {"message": "Not authorized, Only riders can accept deliveries"}
+
+    # Check if the rider already has 2 active deliveries
+    active_deliveries_count = order_collection.count_documents(
+        {"rider_id": current_user.id, "status": "Delivering"}
+    )
+    if active_deliveries_count >= 2:
+        return {"message": "You can only have 2 active deliveries"}
+
+    # Fetch the order
+    order = order_collection.find_one({"id": order_id})
+    if not order:
+        return {"message": "Order not found"}
+
+    # Ensure the order is available for delivery
+    if order["status"] != "Confirmed":
+        return {"message": "Order already accepted for delivery"}
+
+    # Check if the order is already assigned to a rider
+    if order.get("rider_id"):
+        return {"message": "Order is already assigned to another rider"}
+
+    # Assign the rider to the order and update its status
+    order_collection.update_one(
+        {"id": order_id},
+        {"$set": {"status": "Delivering", "rider_id": current_user.id}},
+    )
+
+    return {"message": f"Order {order_id} accepted for delivery."}
+
+
+@router.get("/active_deliveries", response_model=Union[List[OrderSummaryAlt], dict])
+async def active_deliveries(current_user: UserInDB = Depends(get_current_active_user)):
+    # Ensure the user is a rider
+    if current_user.type != 3:
+        return {"message": "Not authorized, only riders can view active deliveries"}
+
+    # Fetch orders assigned to the current rider with status "Delivering"
+    orders = order_collection.find({"rider_id": current_user.id, "status": "Delivering"})
+
+    result = []
+    for order in orders:
+        order_info = OrderSummaryAlt(
+            id=order["id"],
+            total_price=order["total_price"],
+            status=order["status"],
+            confirmation_code = order['confirmation_code'],
+            items=[
+                {"item_id": item["item_id"], "name": item["name"]}
+                for item in order["items"]
+            ],
+        )
+        result.append(order_info)
+
+    return result
+
 
 @router.put("/complete/")
 async def complete_order(order_id: str, confirmation_code: str, current_user: UserInDB = Depends(get_current_active_user)):
-    if current_user.type != 1 and current_user.type != 2:  # Check if user is an admin
-        raise HTTPException(status_code=403, detail="Not authorized to complete the order")
+    if current_user.type != 1 or current_user.type != 2:  # Check if user is an admin
+        return {"message": "Not authorized"}
 
     order = order_collection.find_one({"id": order_id})
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        return {"message": "Order not found"}
 
     if order['status'] == 'Completed':
-        raise HTTPException(status_code=400, detail="Order already completed")
+        return {"message": "Order already completed"}
 
     # Validate the confirmation code
     if order['confirmation_code'] != confirmation_code:
-        raise HTTPException(status_code=400, detail="Invalid confirmation code")
+        return {"message": "Invalid Confirmation code"}
 
     order_collection.update_one({"id": order_id}, {"$set": {"status": "Completed"}})
     updated_order = order_collection.find_one({"id": order_id})
@@ -160,11 +230,11 @@ async def complete_order(order_id: str, confirmation_code: str, current_user: Us
 
 
 # Get all items in an order
-@router.get("/{order_id}/items/", response_model=List[OrderItem])
+@router.get("/{order_id}/items/", response_model=Union[List[OrderSummary], dict])
 async def get_order_items(order_id: str, current_user: UserInDB = Depends(get_current_active_user)):
     order = order_collection.find_one({"id": order_id})
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        return {"message": "Order not found"}
 
     return [OrderItem(**item) for item in order['items']]
 
@@ -173,7 +243,7 @@ async def get_order_items(order_id: str, current_user: UserInDB = Depends(get_cu
 async def get_order_summary(order_id: str, current_user: UserInDB = Depends(get_current_active_user)):
     order = order_collection.find_one({"id": order_id})
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        return {"message": "Order not found"}
 
     total_price = sum(item['price'] * item['quantity'] for item in order['items'])
     total_items = sum(item['quantity'] for item in order['items'])
@@ -186,19 +256,49 @@ async def cancel_order(order_id: str, current_user: UserInDB = Depends(get_curre
     # Check if user is an admin or the order owner
     order = order_collection.find_one({"id": order_id})
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        return {"message": "Order not found"}
     
     if order['user_id'] != current_user.id and current_user.type != 1:  # Check if user is not the owner and not an admin
-        raise HTTPException(status_code=403, detail="Not authorized to cancel the order")
+        return {"message": "Not authorized"}
     
     if order['status'] == 'Cancelled':
-        raise HTTPException(status_code=400, detail="Order already cancelled")
+        return {"message": "Order already cancelled"}
     
-    if order['status'] != 'Pending':
-        raise HTTPException(status_code=400, detail="Order is already being processed!")
+    if order['status'] != 'Rejected':
+        return {"message": "Cant cancel a Rejected order"}
+    
+    if order['status'] != 'Confirmed':
+        return {"message": "Cant cancel a Confirmed order"}
+    
+    if order['status'] != 'Completed':
+        return {"message": "Cant cancel a Completed order"}
     
     order_collection.update_one({"id": order_id}, {"$set": {"status": "Cancelled"}})
     return {"message": "Order cancelled successfully"}
+
+# Reject the order (by the store owner)
+@router.put("/reject/{order_id}")
+async def cancel_order(order_id: str, current_user: UserInDB = Depends(get_current_active_user)):
+    if current_user.type != 1 or current_user.type != 2:  # Check if user is an admin or store owner
+        return {"message": "Not authorized"}
+    
+    order = order_collection.find_one({"id": order_id})
+    if not order:
+        return {"message": "Order not found"}
+    
+    if order['status'] != 'Cancelled':
+        return {"message": "Cant reject a Cancelled order"}
+    
+    if order['status'] != 'Completed':
+        return {"message": "Cant reject a Completed order"}
+    
+    if order['status'] == 'Pending':
+        order_collection.update_one({"id": order_id}, {"$set": {"status": "Rejected"}})
+    
+    if order['status'] != 'Confirmed':
+        order_collection.update_one({"id": order_id}, {"$set": {"status": "Rejected"}})
+    
+    return {"message": "Order Rejected successfully"}
 
 # Confirm the order (by either admin or store owner associated with the order)
 @router.put("/confirm/{order_id}")
@@ -206,21 +306,22 @@ async def confirm_order(order_id: str, current_user: UserInDB = Depends(get_curr
     # Step 1: Find the order
     order = order_collection.find_one({"id": order_id})
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
+        return {"message": "Order not found"}
+    
+    # Check if the current user's store is part of the store_ids for that order
+    if store["id"] not in order['store_ids']:
+        return {"message": "Not authorized to confirm this order"}
     
     # Step 2: Find the store for the current user
     store = store_collection.find_one({"user_id": current_user.id})
 
     if not store:
-        raise HTTPException(status_code=404, detail="Store not found for the current user")
+        return {"message": "Store not found for this user"}
     
-    # Check if the current user's store is part of the store_ids for that order
-    if store["id"] not in order['store_ids']:
-        raise HTTPException(status_code=403, detail="Not authorized to confirm this order")
 
     # Step 3: Check order status
     if order['status'] == 'Confirmed':
-        raise HTTPException(status_code=400, detail="Order already confirmed")
+        return {"message": "Order already confirmed"}
     
     # Step 4: Update the order status to Confirmed
     order_collection.update_one({"id": order_id}, {"$set": {"status": "Confirmed"}})
@@ -229,11 +330,11 @@ async def confirm_order(order_id: str, current_user: UserInDB = Depends(get_curr
 
 
 # Create a new order from the cart (authentication required)
-@router.post("/create_from_cart/", response_model=Order)
+@router.post("/create_from_cart/", response_model= Union[Order, dict])
 async def create_order_from_cart(current_user: UserInDB = Depends(get_current_active_user)):
     cart = cart_collection.find_one({"user_id": current_user.id})
     if not cart or not cart['items']:
-        raise HTTPException(status_code=404, detail="Cart is empty")
+        return {"message": "Cart is empty"}
 
     items = []
     total_price = 0.0
@@ -280,14 +381,22 @@ async def create_order_from_cart(current_user: UserInDB = Depends(get_current_ac
 async def get_order_details(order_id: str, current_user: UserInDB = Depends(get_current_active_user)):
     order = order_collection.find_one({"id": order_id})
     if not order:
-        raise HTTPException(status_code=404, detail="Order not found")
-
-    order_details = {
-        "total_price": order['total_price'],
-        "confirmation_code": order['confirmation_code'],
-        "status": order["status"],
-        "items": [{"name": item['name'], "price": item['price']} for item in order['items']],
-        "store_ids": [{"id": id} for id in order['store_ids']]
-    }
-
+        return {"message": "Order not found"}
+    
+    if order["user_id"] != current_user.id:
+        order_details = {
+            "total_price": order['total_price'],
+            "status": order["status"],
+            "items": [{"name": item['name'], "price": item['price']} for item in order['items']],
+            "store_ids": [{"id": id} for id in order['store_ids']]
+        }
+    else:
+        order_details = {
+            "total_price": order['total_price'],
+            "confirmation_code": order['confirmation_code'],
+            "status": order["status"],
+            "items": [{"name": item['name'], "price": item['price']} for item in order['items']],
+            "store_ids": [{"id": id} for id in order['store_ids']]
+        }
+        
     return order_details

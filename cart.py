@@ -188,7 +188,8 @@ async def checkout_order(current_user: UserInDB = Depends(get_current_active_use
         "total_price": total_price,
         "status": "Pending",
         "confirmation_code": generated_confirmation_code,
-        "store_ids": list(store_ids)  # Include the list of unique store IDs in the order data
+        "store_ids": list(store_ids),  # Include the list of unique store IDs in the order data
+        "rider_ids": None
     }
     
     result = order_collection.insert_one(order_data)
