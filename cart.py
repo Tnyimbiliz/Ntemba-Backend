@@ -86,7 +86,10 @@ async def add_item_to_cart(cart_item: CartItem, current_user: UserInDB = Depends
 
     existing_item = next((i for i in cart['items'] if i['item_id'] == cart_item.item_id), None)
     if existing_item:
-        existing_item['quantity'] += cart_item.quantity
+        if cart_item.quantity >= 1:
+            existing_item['quantity'] += cart_item.quantity
+        else:
+            return {"message":"quantity cannot be less than 1"}
     else:
         cart['items'].append(cart_item.dict())
 
@@ -112,15 +115,15 @@ async def add_item_to_cart(cart_item: CartItem, current_user: UserInDB = Depends
 async def update_item_quantity(
     item_id: str,
     quantity: int,
-    current_user: UserInDB = Depends(get_current_active_user)
-):
-    if quantity < 0:
-        raise HTTPException(status_code=400, detail="Quantity cannot be negative")
+    current_user: UserInDB = Depends(get_current_active_user)):
     
+    if quantity < 0:
+        return {"message":"quantity cannot be less than 1"}
+        
     # Retrieve the user's cart
     cart = cart_collection.find_one({"id": current_user.id})
     if not cart or not cart.get("items"):
-        raise HTTPException(status_code=404, detail="Cart not found or is empty")
+        return {"message":"cart is empty"}
     
     # Find the item in the cart
     for item in cart["items"]:
@@ -128,13 +131,19 @@ async def update_item_quantity(
             # Update the quantity if the item is found
             if quantity == 0:
                 # Remove the item if the quantity is set to 0
-                cart["items"] = [i for i in cart["items"] if i["item_id"] != item_id]
+                updated_items = [item for item in cart["items"] if item["item_id"] != item_id]
+    
+                if len(updated_items) == len(cart["items"]):
+                    return {"message":"item not found in cart"}
+                # Update the cart in the database
+                cart_collection.update_one({"id": current_user.id}, {"$set": {"items": updated_items}})
+                return {"message":"item removed successfully"}
             else:
                 item["quantity"] = quantity
             break
     else:
         # If the loop completes without finding the item
-        raise HTTPException(status_code=404, detail="Item not found in cart")
+        return {"message":"item not found in cart"}
     
     # Update the cart in the database
     cart_collection.update_one({"id": current_user.id}, {"$set": {"items": cart["items"]}})
