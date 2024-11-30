@@ -14,7 +14,6 @@ class OrderItem(BaseModel):
     description: str
     price: float
     quantity: int
-    confirmation_code: str
 
 class Order(BaseModel):
     id: str
@@ -67,7 +66,7 @@ async def get_orders(current_user: UserInDB = Depends(get_current_active_user)):
             confirmation_code = order['confirmation_code'],
             items=[{"item_id": item['item_id'], "name": item['name']} for item in order['items']]
         )
-    result.append(order_info)
+        result.append(order_info)
 
     return result
 
@@ -230,7 +229,7 @@ async def complete_order(order_id: str, confirmation_code: str, current_user: Us
 
 
 # Get all items in an order
-@router.get("/{order_id}/items/", response_model=Union[List[OrderSummary], dict])
+@router.get("/{order_id}/items/", response_model=Union[List[OrderItem], dict])
 async def get_order_items(order_id: str, current_user: UserInDB = Depends(get_current_active_user)):
     order = order_collection.find_one({"id": order_id})
     if not order:
@@ -278,7 +277,7 @@ async def cancel_order(order_id: str, current_user: UserInDB = Depends(get_curre
 
 # Reject the order (by the store owner)
 @router.put("/reject/{order_id}")
-async def cancel_order(order_id: str, current_user: UserInDB = Depends(get_current_active_user)):
+async def reject_order(order_id: str, current_user: UserInDB = Depends(get_current_active_user)):
     if current_user.type != 1 or current_user.type != 2:  # Check if user is an admin or store owner
         return {"message": "Not authorized"}
     
