@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, status, Depends
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 import shortuuid
 from typing import List, Dict, Union
@@ -74,7 +75,10 @@ async def get_orders(current_user: UserInDB = Depends(get_current_active_user)):
 @router.get("/customer_orders/", response_model= Union[List[OrderSummaryAlt], dict])
 async def get_customer_orders(current_user: UserInDB = Depends(get_current_active_user)):
     if current_user.type != 2:
-        return {"message":"Not Authorized, You must to be a store owner"}
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"message": "Not authorized, You must be a store"}
+        )
     
     # Step 1: Find the store that belongs to the current user
     store = store_collection.find_one({"user_id": current_user.id})  # Use find_one to get a single document
@@ -116,7 +120,10 @@ async def get_customer_orders(current_user: UserInDB = Depends(get_current_activ
 async def get_riders_orders(current_user: UserInDB = Depends(get_current_active_user)):
     # step 1: Check if the current user is a biker or an admin
     if current_user.type != 3:
-        return {"message": "Not Authorized, you must be a rider"}
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"message": "Not authorized you must be a rider"}
+        )
     # Step 2: Find orders where the current user's store ID is in the store_ids field
     orders = order_collection.find({"status": "Confirmed"})
 
@@ -150,7 +157,10 @@ async def get_riders_orders(current_user: UserInDB = Depends(get_current_active_
 async def accept_delivery(order_id: str, current_user: UserInDB = Depends(get_current_active_user)):
     # Ensure the user is a rider
     if current_user.type != 3:
-        return {"message": "Not authorized, Only riders can accept deliveries"}
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"message": "Not authorized, only riders can accept deliveries"}
+        )
 
     # Check if the rider already has 2 active deliveries
     active_deliveries_count = order_collection.count_documents(
@@ -185,7 +195,10 @@ async def accept_delivery(order_id: str, current_user: UserInDB = Depends(get_cu
 async def active_deliveries(current_user: UserInDB = Depends(get_current_active_user)):
     # Ensure the user is a rider
     if current_user.type != 3:
-        return {"message": "Not authorized, only riders can view active deliveries"}
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"message": "Not authorized, only riders can view active deliveries"}
+        )
 
     # Fetch orders assigned to the current rider with status "Delivering"
     orders = order_collection.find({"rider_id": current_user.id, "status": "Delivering"})
@@ -209,8 +222,11 @@ async def active_deliveries(current_user: UserInDB = Depends(get_current_active_
 
 @router.put("/complete/")
 async def complete_order(order_id: str, confirmation_code: str, current_user: UserInDB = Depends(get_current_active_user)):
-    if current_user.type != 1 or current_user.type != 2:  # Check if user is an admin
-        return {"message": "Not authorized"}
+    if current_user.type != 1 or current_user.type != 3:  # Check if user is an admin
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"message": "Not authorized, must be either admin or rider"}
+        )
 
     order = order_collection.find_one({"id": order_id})
     if not order:
@@ -258,7 +274,10 @@ async def cancel_order(order_id: str, current_user: UserInDB = Depends(get_curre
         return {"message": "Order not found"}
     
     if order['user_id'] != current_user.id and current_user.type != 1:  # Check if user is not the owner and not an admin
-        return {"message": "Not authorized"}
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"message": "Not authorized, you dont have the priveprivileges to cancel this order"}
+        )
     
     if order['status'] == 'Cancelled':
         return {"message": "Order already cancelled"}
@@ -279,7 +298,10 @@ async def cancel_order(order_id: str, current_user: UserInDB = Depends(get_curre
 @router.put("/reject/{order_id}")
 async def reject_order(order_id: str, current_user: UserInDB = Depends(get_current_active_user)):
     if current_user.type != 1 or current_user.type != 2:  # Check if user is an admin or store owner
-        return {"message": "Not authorized"}
+        return JSONResponse(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            content={"message": "Not authorized, you dont have the priveprivileges to reject this order"}
+        )
     
     order = order_collection.find_one({"id": order_id})
     if not order:
