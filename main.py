@@ -1,18 +1,19 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import os
 from fastapi.templating import Jinja2Templates
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from starlette.requests import Request
+from mangum import Mangum
 
 
 #from other files
-import item, user, cart, order, store, register
+import item, user, cart, order, store, register, store_ratings
 
 # Create FastAPI instance
 app = FastAPI()
+handler = Mangum(app)
 
 # Mount the 'images' directory for static file access
 app.mount("/images", StaticFiles(directory="images"), name="images")
@@ -23,6 +24,7 @@ app.include_router(cart.router)
 app.include_router(order.router)
 app.include_router(store.router)
 app.include_router(register.router)
+app.include_router(store_ratings.router)
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
