@@ -14,12 +14,14 @@ from user import get_current_active_user, UserInDB
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
 AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
+AWS_REGION = os.getenv("AWS_REGION")
 
 
 # Initialize S3 client
 s3 = boto3.client('s3',
-                  aws_access_key_id=AWS_ACCESS_KEY_ID,
-                  aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+                    aws_access_key_id=AWS_ACCESS_KEY_ID,
+                    aws_secret_access_key=AWS_SECRET_ACCESS_KEY,
+                    region_name=AWS_REGION)
 
 # Constants for file validation
 MAX_FILE_SIZE_MB = 1
@@ -206,15 +208,17 @@ async def search_items_by_category(
         items.append(ItemInDB(**item))
     return items
 
+# Generate a pre-signed S3 URL
 def get_s3_image_url(image_name: str):
     try:
         url = s3.generate_presigned_url('get_object',
-                                              Params={'Bucket': AWS_BUCKET_NAME, 'Key': image_name},
-                                              ExpiresIn=3600)
+                                        Params={'Bucket': AWS_BUCKET_NAME, 'Key': image_name},
+                                        ExpiresIn=3600)  # URL expires in 1 hour
         return url
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating image URL: {str(e)}")
 
+# Endpoint to retrieve the image URL
 @router.get("/image-url/{image_name}")
 def image_url(image_name: str):
     return {"image_url": get_s3_image_url(image_name)}
