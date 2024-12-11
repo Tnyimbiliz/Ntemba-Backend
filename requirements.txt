@@ -9,3 +9,6 @@ shortuuid  # For generating short unique IDs
 pyjwt  # For JSON Web Token management
 pydantic[email]
 boto3
+
+
+https://ntembazdatastore.s3.eu-north-1.amazonaws.com/cg8i5phZgfe5EU8GktMUqy.png?AWSAccessKeyId=AKIAZOZQF7BRAJLU3TUB&Signature=NXq%2ByITWUifWxJW78jg6oELXYBY%3D&Expires=1733918935

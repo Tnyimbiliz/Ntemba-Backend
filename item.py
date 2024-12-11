@@ -3,18 +3,23 @@ from fastapi import APIRouter, HTTPException, Depends, status, Query, UploadFile
 import os
 #from dotenv import load_dotenv
 from typing import List, Optional
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 import shortuuid
 from database import items_collection, store_collection
 from user import get_current_active_user, UserInDB
 
-# load_dotenv()
+#load_dotenv()
 
 # Retrieve values from the environment
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
+AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
 
+router = APIRouter(
+    prefix='/item',
+    tags=['item']
+)
 
 # Initialize S3 client
 s3 = boto3.client('s3',
@@ -40,10 +45,6 @@ class Item(BaseModel):
 class ItemInDB(Item):
     id: str = Field(default_factory=shortuuid.uuid)
 
-router = APIRouter(
-    prefix='/item',
-    tags=['item']
-)
 # Constants for file validation
 MAX_FILE_SIZE_MB = 1
 SUPPORTED_FILE_TYPES = {"image/png", "image/jpeg"}
@@ -94,7 +95,7 @@ async def create_item(
         file_extension = image.content_type.split("/")[-1]
         image_filename = f"{id}.{file_extension}"
         print(image_filename)
-        s3.upload_fileobj(image.file, BUCKET_NAME, image_filename)
+        s3.upload_fileobj(image.file, AWS_BUCKET_NAME, image_filename)
 
         # Construct the image URL (assuming the bucket is public)
         image_url = image_filename
@@ -205,3 +206,27 @@ async def search_items_by_category(
     for item in cursor:
         items.append(ItemInDB(**item))
     return items
+
+def get_s3_image_url(image_name: str):
+    if not image_name:
+        raise HTTPException(status_code=400, detail="Image name cannot be empty")
+
+    print(f"Received image name: {image_name}")  # Debug log
+    
+    try:
+        print(f"Attempting to generate URL for image: {image_name}")  # Debug log
+        url = s3.generate_presigned_url('get_object',
+                                              Params={'Bucket': AWS_BUCKET_NAME, 'Key': image_name},
+                                              ExpiresIn=3600)
+        print(f"Generated URL: {url}")  # Debug log
+        return url
+    except Exception as e:
+        print(f"Error generating URL: {str(e)}")  # Debug log
+        raise HTTPException(status_code=500, detail=f"Error generating image URL: {str(e)}")
+
+@router.get("/image-url/{image_name}")
+def image_url(image_name: str):
+    if not image_name:
+        raise HTTPException(status_code=400, detail="Image name is required.")
+    
+    return {"image_url": get_s3_image_url(image_name)}
