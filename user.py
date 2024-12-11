@@ -2,7 +2,6 @@ from email.mime.text import MIMEText
 import random
 import smtplib
 import os
-from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
@@ -47,12 +46,10 @@ router = APIRouter(
     tags=['user']
 )
 
-# load_dotenv()
+#load_dotenv()
 
 # Retrieve values from the environment
-#APP_PASSWORD = os.getenv("APP_PASSWORD")
-
-APP_PASSWORD = "sift mgbd ygsm jtdx"
+APP_PASSWORD = os.getenv("APP_PASSWORD")
 
 
 # JWT and password hashing settings
