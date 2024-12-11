@@ -1,8 +1,3 @@
-from email.mime.text import MIMEText
-import random
-import smtplib
-import os
-from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
@@ -23,8 +18,6 @@ class User(BaseModel):
 
 class UserInDB(User):
     hashed_password: str
-    verification_code: Optional[str] = None
-    is_verified: bool = False  # Add a field to check if the user is verified
 
 class UserData(User):
     username: str
@@ -46,11 +39,6 @@ router = APIRouter(
     prefix='',
     tags=['user']
 )
-
-# load_dotenv()
-
-# Retrieve values from the environment
-APP_PASSWORD = os.getenv("APP_PASSWORD")
 
 # JWT and password hashing settings
 SECRET_KEY = "44h32345293875249592342wdfs052528435223423b2h342jg3245j234g6n436j3"
@@ -97,47 +85,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
 async def get_current_active_user(current_user: UserInDB = Depends(get_current_user)):
     return current_user
 
-def send_verification_email(email: str, verification_code: str):
-    sender_email = "ntembaz22@gmail.com"  # Replace with your email
-    sender_password = APP_PASSWORD  # Replace with your app password
-    subject = "VERIFY"
-    # Styled HTML email template
-    body = f"""
-    <html>
-    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f9;">
-        <div style="max-width: 600px; margin: 20px auto; background-color: #ffffff; border: 1px solid #ddd; border-radius: 10px; overflow: hidden;">
-            <div style="padding: 20px; text-align: center; background-color: #01356A; color: #ffffff;">
-                <h2>Welcome to NtembaZ!</h2>
-            </div>
-            <div style="padding: 20px; text-align: center;">
-                <p style="font-size: 16px; color: #333;">Please use the verification code below to complete your registration:</p>
-                <div style="margin: 20px auto; padding: 10px; display: inline-block; background-color: #e3f2fd; border: 1px solid #90caf9; border-radius: 5px;">
-                    <span style="font-size: 24px; color: #0d47a1; font-weight: bold;">{verification_code}</span>
-                </div>
-                <p style="font-size: 14px; color: #666;">If you did not request this, please ignore this email.</p>
-            </div>
-            <div style="padding: 20px; text-align: center; background-color: #f4f4f9; color: #777;">
-                <p style="font-size: 14px;">For support, contact us at <a href="mailto:support@ntemba.com" style="color: #01356A; text-decoration: none;">support@ntemba.com</a></p>
-                <p style="font-size: 12px;">&copy; 2024 NtembaZ. All rights reserved.</p>
-            </div>
-        </div>
-    </body>
-    </html>
-    """
-
-    msg = MIMEText(body, "html")  # Specify that the email content is in HTML format
-    msg["Subject"] = subject
-    msg["From"] = sender_email
-    msg["To"] = email
-
-    try:
-        with smtplib.SMTP("smtp.gmail.com", 587) as server:
-            server.starttls()
-            server.login(sender_email, sender_password)
-            server.sendmail(sender_email, email, msg.as_string())
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to send email: {e}")
-
 # --------- API ENDPOINTS ---------
 
 # User registration
@@ -148,42 +95,10 @@ async def create_user(user: UserCreate):
     user_dict['username'] = user_dict['username'].lower()  # Convert username to lowercase
     user_dict['hashed_password'] = get_password_hash(user.password)
     del user_dict['password']
-    
     if users_collection.find_one({"username": user_dict['username']}):
         raise HTTPException(status_code=400, detail="Username already exists")
-    
-    if users_collection.find_one({"email": user_dict['email'], "is_verified":True}):
-        raise HTTPException(status_code=400, detail="Email already in use")
-    
-    # Generate a random verification code
-    verification_code = str(random.randint(100000, 999999))
-    user_dict['verification_code'] = verification_code
-    user_dict['is_verified'] = False
-    
-    # Send verification email
-    try:
-        send_verification_email(user_dict['email'], verification_code)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error sending email: {e}")
-
     users_collection.insert_one(user_dict)
     return User(**user_dict)
-
-# Endpoint to verify the code
-@router.post("/user/verify/")
-async def verify_user(email: str, code: str):
-    user = users_collection.find_one({"email": email})
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    if user.get("verification_code") == code:
-        users_collection.update_one(
-            {"email": email}, 
-            {"$set": {"is_verified": True, "verification_code": None}}
-        )
-        return {"message": "Account verified successfully"}
-    else:
-        raise HTTPException(status_code=400, detail="Invalid verification code")
 
 # User login and token generation
 @router.post("/token", response_model=dict)
