@@ -6,13 +6,14 @@ from starlette.requests import Request
 
 
 #from other files
-import item, user, cart, order, store, register, store_ratings
+import item, user, cart, order, store, register, store_ratings,item_ratings
 
 # Create FastAPI instance
 app = FastAPI()
 
 app.include_router(user.router)
 app.include_router(item.router)
+app.include_router(item_ratings.router)
 app.include_router(cart.router)
 app.include_router(order.router)
 app.include_router(store.router)

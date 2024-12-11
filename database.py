@@ -20,6 +20,7 @@ cart_collection = database.carts
 order_collection = database.orders
 store_collection = database.stores
 register_collection = database.registers
+item_rating_collection = database.item_ratings
 store_rating_collection = database.store_ratings
 
 
