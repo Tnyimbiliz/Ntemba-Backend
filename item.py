@@ -8,12 +8,12 @@ import shortuuid
 from database import items_collection, store_collection
 from user import get_current_active_user, UserInDB
 
-# load_dotenv()
+#load_dotenv()
 
 # Retrieve values from the environment
 AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
 AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
-BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
+AWS_BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
 
 
 # Initialize S3 client
@@ -94,7 +94,7 @@ async def create_item(
         file_extension = image.content_type.split("/")[-1]
         image_filename = f"{id}.{file_extension}"
         print(image_filename)
-        s3.upload_fileobj(image.file, BUCKET_NAME, image_filename)
+        s3.upload_fileobj(image.file, AWS_BUCKET_NAME, image_filename)
 
         # Construct the image URL (assuming the bucket is public)
         image_url = image_filename
@@ -205,3 +205,16 @@ async def search_items_by_category(
     for item in cursor:
         items.append(ItemInDB(**item))
     return items
+
+def get_s3_image_url(image_name: str):
+    try:
+        url = s3.generate_presigned_url('get_object',
+                                              Params={'Bucket': AWS_BUCKET_NAME, 'Key': image_name},
+                                              ExpiresIn=3600)
+        return url
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating image URL: {str(e)}")
+
+@router.get("/image-url/{image_name}")
+def image_url(image_name: str):
+    return {"image_url": get_s3_image_url(image_name)}
