@@ -1,10 +1,30 @@
+import boto3
 from fastapi import APIRouter, HTTPException, Depends, status, Query, UploadFile, File, Form
 import os
+#from dotenv import load_dotenv
 from typing import List, Optional
 from pydantic import BaseModel, Field
 import shortuuid
 from database import items_collection, store_collection
 from user import get_current_active_user, UserInDB
+
+# load_dotenv()
+
+# Retrieve values from the environment
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+BUCKET_NAME = os.getenv("AWS_BUCKET_NAME")
+
+
+# Initialize S3 client
+s3 = boto3.client('s3',
+                  aws_access_key_id=AWS_ACCESS_KEY_ID,
+                  aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
+
+# Constants for file validation
+MAX_FILE_SIZE_MB = 1
+SUPPORTED_FILE_TYPES = {"image/png", "image/jpeg"}
+
 
 # Pydantic model for Item
 class Item(BaseModel):
@@ -12,6 +32,8 @@ class Item(BaseModel):
     description: Optional[str] = None
     price: float
     store_id: str
+    rating: float = 0.0
+    rating_count: int = 0.0
     categories: List[str] = Field(default_factory=list)
     image_url: Optional[str] = None  # URL or path to the uploaded image
 
@@ -22,8 +44,11 @@ router = APIRouter(
     prefix='/item',
     tags=['item']
 )
+# Constants for file validation
+MAX_FILE_SIZE_MB = 1
+SUPPORTED_FILE_TYPES = {"image/png", "image/jpeg"}
 
-# Create an item with an image (authentication required)
+# Update the `create_item` endpoint
 @router.post("/create_item/", response_model=ItemInDB)
 async def create_item(
     name: str = Form(...),
@@ -40,33 +65,57 @@ async def create_item(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="User does not have a store. Please create a store before adding items."
         )
+    
+    # Generate a unique ID for the item
+    id = shortuuid.uuid()
 
     # Process the image file if provided
     image_url = None
     if image:
-        # Ensure the directory exists
-        image_dir = "C://Users//LENOVO//Desktop//flutter//Ntemba//BackEnd//Django//MongoTest//ntemba//public//images"
-        os.makedirs(image_dir, exist_ok=True)
+        # Validate file type
+        if image.content_type not in SUPPORTED_FILE_TYPES:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type: {image.content_type}. Allowed types are PNG and JPEG."
+            )
+        # Validate file size
+        contents = await image.read()  # Read the file contents to get its size
+        file_size_mb = len(contents) / (1024 * 1024)  # Convert size to MB
+        if file_size_mb > MAX_FILE_SIZE_MB:
+            raise HTTPException(
+                status_code=400,
+                detail=f"File size exceeds 1MB limit."
+            )
 
-        image_path = os.path.join(image_dir, image.filename)
-        with open(image_path, "wb") as f:
-            f.write(await image.read())
-        image_url = f"images/{image.filename}"
+        # Reset the file cursor after reading for validation
+        image.file.seek(0)
+
+        # Upload file to S3 using the item's ID as the filename
+        file_extension = image.content_type.split("/")[-1]
+        image_filename = f"{id}.{file_extension}"
+        print(image_filename)
+        s3.upload_fileobj(image.file, BUCKET_NAME, image_filename)
+
+        # Construct the image URL (assuming the bucket is public)
+        image_url = image_filename
 
     # Prepare item data
     item_data = {
-        "id": shortuuid.uuid(),
+        "id": id,
         "name": name,
         "description": description,
         "price": price,
         "store_id": store['id'],
         "categories": categories,
+        "rating": 0.0,
+        "rating_count": 0,
         "image_url": image_url
     }
 
-    # Insert item into database
+    # Insert item into the database
     items_collection.insert_one(item_data)
     return ItemInDB(**item_data)
+
 
 # Get a specific item by ID (authentication required)
 @router.get("/get_item_by_id/{item_id}", response_model=ItemInDB)
@@ -156,4 +205,3 @@ async def search_items_by_category(
     for item in cursor:
         items.append(ItemInDB(**item))
     return items
-

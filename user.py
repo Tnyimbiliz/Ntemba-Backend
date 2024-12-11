@@ -2,6 +2,7 @@ from email.mime.text import MIMEText
 import random
 import smtplib
 import os
+#from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException, Depends, status
 from pydantic import BaseModel, Field
 from datetime import datetime, timedelta
